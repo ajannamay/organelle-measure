@@ -10,14 +10,6 @@ from organelle_measure.util import load_nd2_plane
 
 list_sigma = [0.3,0.5,0.8,1.0,1.5,2]
 
-# Test Result of blue channels:
-# For pex3, sigma=1.5 seems too much, while sigma=0.3 is definitely not enough
-# sigma=1.0 gives more globular results than sigma=0.8.
-# So sigma=1.0 it is. 
-# Watershed is necessary.
-# For vph1, sigma=1.0 and 0.8 are good. 
-# Excluding peroxisome from vacuole images are definitely necessary.
-
 path_img = Path("../test/raw/unmixed-blue-experimental_1nmpp1-3000_field-2.nd2")
 img_pex3 = load_nd2_plane(str(path_img),frame="zyx",axes="c",idx=0)
 img_vph1 = load_nd2_plane(str(path_img),frame="zyx",axes="c",idx=1)
@@ -30,4 +22,10 @@ for sigma in list_sigma:
     io.imsave(str(path_pex3),util.img_as_float(out_pex3))
     io.imsave(str(path_vph1),util.img_as_float(out_vph1))
 
-
+# Test RESULT of blue channels:
+# For pex3, sigma=1.5 seems too much, while sigma=0.3 is definitely not enough
+# sigma=1.0 gives more globular results than sigma=0.8.
+# So sigma=1.0 it is. 
+# Watershed is necessary.
+# For vph1, sigma=1.0 and 0.8 are good. 
+# Excluding peroxisome from vacuole images are definitely necessary.
