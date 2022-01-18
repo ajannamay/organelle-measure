@@ -1,7 +1,7 @@
 # This file compares different sigmas for gaussian filter as a preprocessing 
 # method. The raw images from the microscope looked better on the controlling 
-# software because it used "spline" as a "rescaling" method. The algorithm is 
-# not known, that's why we have this file.
+# software because it used "spline" as a "rescaling" method. 
+# The algorithm is not known, that's why we have this file.
 
 import numpy as np
 from pathlib import Path
