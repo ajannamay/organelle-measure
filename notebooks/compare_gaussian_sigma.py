@@ -8,7 +8,7 @@ from pathlib import Path
 from skimage import util,io,filters
 from organelle_measure.util import load_nd2_plane
 
-list_sigma = [0.3,0.5,0.8,1.0,1.5,2]
+list_sigma = [0.3,0.5,0.8,1.0,1.5,2.]
 
 path_img = Path("../test/raw/unmixed-blue-experimental_1nmpp1-3000_field-2.nd2")
 img_pex3 = load_nd2_plane(str(path_img),frame="zyx",axes="c",idx=0)
@@ -29,3 +29,28 @@ for sigma in list_sigma:
 # Watershed is necessary.
 # For vph1, sigma=1.0 and 0.8 are good. 
 # Excluding peroxisome from vacuole images are definitely necessary.
+
+for sigma in list_sigma:
+    out_vph1 = filters.difference_of_gaussians(img_vph1,low_sigma=sigma) # default high_sigma=1.6*low_sigma 
+    out_vph1 = (out_vph1-(out_min:=out_vph1.min()))/(out_vph1.max()-out_min)
+    path_vph1 = Path("../test/difference_of_gaussians/")/f"vph1_diffgaussian_{str(sigma).replace('.','-')}_{path_img.stem.partition('_')[2]}.tif"
+    io.imsave(str(path_vph1),util.img_as_float(out_vph1))
+
+for sigma in list_sigma:
+    for sigma2 in list_sigma:
+        if not sigma2 > sigma:
+            continue
+        out_vph1 = filters.difference_of_gaussians(img_vph1,low_sigma=sigma,high_sigma=sigma2)
+        out_vph1 = (out_vph1-(out_min:=out_vph1.min()))/(out_vph1.max()-out_min)
+        path_vph1 = Path("../test/difference_of_gaussians/")/f"vph1_diffgaussian_{str(sigma).replace('.','-')}_{str(sigma2).replace('.','-')}_{path_img.stem.partition('_')[2]}.tif"
+        io.imsave(str(path_vph1),util.img_as_float(out_vph1))
+
+# Test RESULT of vph1 channel:
+# small low sigmas do not work well.
+# low_sigma = 1.5 and 2 are obviously too large.
+# low=0.5,high=1.5 is not bad
+# low=0.5,high=2.0 is good
+# imageJ coordinate (115,302) seems to be upper left corner of a cell with >1 vacuoles.
+# low=0.8,high=1.0 and 1.5 are good
+# low=1.0,high=2.0 is not bad
+# low=1.5,high=2.0 is not good
