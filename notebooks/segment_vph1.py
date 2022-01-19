@@ -29,10 +29,20 @@
 # - low=1.0,high=2.0 is not bad
 # - low=1.5,high=2.0 is not good
 
-# Use Scikit-Image to skeletonize:
 import numpy as np
 from skimage import io,util,morphology
 from skimage.util.dtype import img_as_bool, img_as_ubyte
+
+# The pipeline is as follows:
+# - start with the unmixed-**.nd2 image
+# - apply a difference of gaussians filter: vph1_diffgaussian-**.tif
+# - use ilastika to binarize the image: bin-vph1-**.tif
+# - skeletonize the image: skeleton-vph1-**.tif
+# - flood fill the image so that closed ring will be recognized as vacuoles: skeleton-fill-vph1-**.tif
+
+# REPRODUCE THE PROPOSED PIPELINE FROM IMAGEJ TO PYTHON
+
+# Use Scikit-Image to skeletonize:
 path_seg = "../test/binary/bin-vph1_diffgaussian_0-8_1nmpp1-3000_field-2.tiff"
 img_seg  = io.imread(path_seg)
 img_seg -= img_seg.min()
@@ -54,19 +64,52 @@ for z in range(len(img_skl)):
 io.imsave(path_seg.replace("/binary","/skeleton").replace("bin","scikit-skeleton2d"),util.img_as_ubyte(img_skl))
 
 # Use Scikit-Image to flood fill the skeletonized
-path_seg = "../test/binary/bin-vph1_diffgaussian_0-8_1nmpp1-3000_field-2.tiff"
-img_seg  = io.imread(path_seg)
+# flood() gives a mask of the region that have same/similar value as the seed.
+# flood_fill() gives a img that equals the original plus the result of flood() 
+# in our case the flood fill should have smaller blobs than flood()
+path_skl = "../test/skeleton/scikit-skeleton2d-vph1_diffgaussian_0-8_1nmpp1-3000_field-2.tiff"
+img_skl  = ~io.imread(path_skl).astype(bool) # notice the reverse.
+img_fill = np.zeros_like(img_skl)
+for z in range(len(img_fill)):
+    img_fill[z] = morphology.flood_fill(img_skl[z],(0,0),False,selem=morphology.disk(1))
+io.imsave(path_skl.replace("skeleton/scikit-skeleton2d","vacuole/python-fill"),util.img_as_ubyte(img_fill))
 
+# IMPROVEMENT:
+# closing the image (ilastik segmentation OR skeletonized)
+# with different (2d OR 3d) 
+# shapes (disk/ball(1/2/3) OR square/cube(1/3/5))
 
+# closing the skletonized image
+path_skl = "../test/skeleton/scikit-skeleton2d-vph1_diffgaussian_0-8_1nmpp1-3000_field-2.tiff"
+img_skl  = io.imread(path_skl).astype(bool)
+# 2d:
+selem_params_2d = (
+    ("disk",  1),
+    ("square",3),
+    ("disk",  2)
+)
+for sel_shape,sel_rad in selem_params_2d:
+    img_clo  = np.zeros_like(img_skl)
+    for z in range(len(img_clo)):
+        img_clo[z] = morphology.binary_closing(img_skl[z],selem=getattr(morphology,sel_shape)(sel_rad))
+    io.imsave(path_skl.replace("scikit",f"close-{sel_shape}-{sel_rad}"),img_clo)
+# 2d results do not differ too much, 
+# but there have been some filled holes in disk(2),
+# and square(3) does help with some broken rings.
+# I feel that we need to close the images before skeletonization.
+# 3d:
+path_skl = "../test/skeleton/scikit-skeleton2d-vph1_diffgaussian_0-8_1nmpp1-3000_field-2.tiff"
+img_skl  = io.imread(path_skl).astype(bool)
+selem_params_3d = (
+    ("ball",1),
+    ("cube",3),
+    ("ball",2)
+)
+for sel_shape,sel_rad in selem_params_3d:
+    img_clo = morphology.binary_closing(img_skl,selem=getattr(morphology,sel_shape)(sel_rad))
+    io.imsave(path_skl.replace("scikit",f"close3d-{sel_shape}-{sel_rad}"),img_clo)
+# 3d results also not too different.
+# One advantage of closing skeletonized images is that it hardly changes the shape of the circle.
+# We need to fill the holes to see the results better.
 
-# The pipeline is as follows:
-# - start with the unmixed-**.nd2 image
-# - apply a difference of gaussians filter: vph1_diffgaussian-**.tif
-# - use ilastika to binarize the image: bin-vph1-**.tif
-# - skeletonize the image: skeleton-vph1-**.tif
-# - flood fill the image so that closed ring will be recognized as vacuoles: skeleton-fill-vph1-**.tif
-
-# A New Possible Pipeline:
-# Since 3d skeletonize is do-able, we can use the old way:
-# XOR(skeletonized,convexhull(skeleonized))
-# but we need to check those small false positives.
+# 
