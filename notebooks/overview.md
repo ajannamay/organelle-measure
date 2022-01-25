@@ -10,7 +10,7 @@ The Segmentation part is centered by ilastik. The inputs are acquired images, th
 - ilastik
 - postprocessing
 
-Measurement part: the inputs are the 
+Measurement part: the inputs are the binary images, the outputs are the csv files.
 
 Analysis part, the inputs are the csv files, and the outputs are the plots. 
 

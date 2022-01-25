@@ -1,5 +1,6 @@
 import numpy as np
 from pathlib import Path
+from skimage import morphology
 
 # BEGIN of ND2reader wrapper:
 from nd2reader import ND2Reader
@@ -26,3 +27,10 @@ dict_open_organelles = {
     "erg6": lambda x: load_nd2_plane(str(x),frame="zyx",axes='tc',idx=1)
 }
 # END of ND2reader wrapper.
+
+def skeletonize_zbyz(image):
+    """image has values [0,1] only."""
+    skeletonized = np.zeros_like(image)
+    for z in range(len(skeletonized)):
+        skeletonized[z] = morphology.skeletonize(image[z])
+    return skeletonized

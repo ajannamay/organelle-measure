@@ -31,8 +31,7 @@
 
 import numpy as np
 from skimage import io,util,morphology
-from skimage.util.dtype import img_as_bool, img_as_ubyte
-
+from pathlib import Path
 # The pipeline is as follows:
 # - start with the unmixed-**.nd2 image
 # - apply a difference of gaussians filter: vph1_diffgaussian-**.tif
@@ -42,13 +41,13 @@ from skimage.util.dtype import img_as_bool, img_as_ubyte
 
 # REPRODUCE THE PROPOSED PIPELINE FROM IMAGEJ TO PYTHON
 
-# Use Scikit-Image to skeletonize:
+# Use Scikit-Image to close the segmented images:
 path_seg = "../test/binary/bin-vph1_diffgaussian_0-8_1nmpp1-3000_field-2.tiff"
 img_seg  = io.imread(path_seg)
 img_seg -= img_seg.min()
 for rad in [1,2,3]:
     img_open = morphology.binary_closing(img_seg,selem=morphology.ball(rad))
-    io.imsave(path_seg.replace("vph1",f"vph1_open-{rad}"),util.img_as_ubyte(img_open))
+    io.imsave(path_seg.replace("vph1",f"vph1_close-{rad}"),util.img_as_ubyte(img_open))
 # ball(3) almost filling every hole so useless. 
 # ball(1) so good that I want it solely as output.
 # opening potentially gives false positive by connecting borders of several vacuoles.
@@ -57,7 +56,7 @@ for rad in [1,2,3]:
 # skeletonize can only take [0,1] as values!
 path_seg = "../test/binary/bin-vph1_diffgaussian_0-8_1nmpp1-3000_field-2.tiff"
 img_seg  = io.imread(path_seg)
-img_seg -= img_seg.min()
+img_seg -= img_seg.min() # ilastik gives results of 1 and 2 for binary segmentation :-(
 img_skl  = np.zeros_like(img_seg)
 for z in range(len(img_skl)):
     img_skl[z]  = morphology.skeletonize(img_seg[z])
@@ -79,20 +78,23 @@ io.imsave(path_skl.replace("skeleton/scikit-skeleton2d","vacuole/python-fill"),u
 # with different (2d OR 3d) 
 # shapes (disk/ball(1/2/3) OR square/cube(1/3/5))
 
-# closing the skletonized image
+# Closing the Skletonized Image:
 path_skl = "../test/skeleton/scikit-skeleton2d-vph1_diffgaussian_0-8_1nmpp1-3000_field-2.tiff"
 img_skl  = io.imread(path_skl).astype(bool)
 # 2d:
 selem_params_2d = (
     ("disk",  1),
     ("square",3),
-    ("disk",  2)
+    ("disk",  2),
+    ("square",5),
+    ("disk",  3),
+    ("square",7)
 )
 for sel_shape,sel_rad in selem_params_2d:
     img_clo  = np.zeros_like(img_skl)
     for z in range(len(img_clo)):
         img_clo[z] = morphology.binary_closing(img_skl[z],selem=getattr(morphology,sel_shape)(sel_rad))
-    io.imsave(path_skl.replace("scikit",f"close-{sel_shape}-{sel_rad}"),img_clo)
+    io.imsave(path_skl.replace("scikit",f"close2d-{sel_shape}-{sel_rad}"),img_clo)
 # 2d results do not differ too much, 
 # but there have been some filled holes in disk(2),
 # and square(3) does help with some broken rings.
@@ -103,13 +105,67 @@ img_skl  = io.imread(path_skl).astype(bool)
 selem_params_3d = (
     ("ball",1),
     ("cube",3),
-    ("ball",2)
+    ("ball",2),
+    ("cube",5),
+    ("ball",3),
+    ("cube",7)
 )
 for sel_shape,sel_rad in selem_params_3d:
     img_clo = morphology.binary_closing(img_skl,selem=getattr(morphology,sel_shape)(sel_rad))
     io.imsave(path_skl.replace("scikit",f"close3d-{sel_shape}-{sel_rad}"),img_clo)
 # 3d results also not too different.
+# cube(5) helps a little, cube(7) is definitely too much wrong.
 # One advantage of closing skeletonized images is that it hardly changes the shape of the circle.
 # We need to fill the holes to see the results better.
 
-# 
+# I think we can conclude that 3d is better than 2d, 
+# and ball(2) is not trivial.
+
+
+# Closing the Segmented Images:
+path_seg = "../test/binary/bin-vph1_diffgaussian_0-8_1nmpp1-3000_field-2.tiff"
+img_seg  = io.imread(path_seg)
+img_seg  = (img_seg - img_seg.min()).astype(bool) # ilastik gives results of 1 and 2 for binary segmentation :-(
+# 2d:
+selem_params_2d = (
+    ("disk",  1),
+    ("square",3),
+    ("disk",  2),
+    ("square",5),
+    ("disk",  3),
+    ("square",7)
+)
+for sel_shape,sel_rad in selem_params_2d:
+    img_clo  = np.zeros_like(img_skl)
+    for z in range(len(img_clo)):
+        img_clo[z] = morphology.binary_closing(img_skl[z],selem=getattr(morphology,sel_shape)(sel_rad))
+    io.imsave(path_seg.replace("bin-",f"close2d-{sel_shape}-{sel_rad}-"),img_clo)
+# 3d:
+selem_params_3d = (
+    ("ball",1),
+    ("cube",3),
+    ("ball",2),
+    ("cube",5),
+    ("ball",3),
+    ("cube",7)
+)
+for sel_shape,sel_rad in selem_params_3d:
+    img_clo = morphology.binary_closing(img_skl,selem=getattr(morphology,sel_shape)(sel_rad))
+    io.imsave(path_seg.replace("bin-",f"close3d-{sel_shape}-{sel_rad}-"),img_clo)
+
+# Skeletonize the closed images:
+from pathlib import Path
+for path_close in Path("../test/binary").glob("close*.tiff"):
+    img_bin = io.imread(str(path_close)).astype(bool)
+    img_skl = np.zeros_like(img_bin)
+    for z in range(len(img_skl)):
+        img_skl[z] = morphology.skeletonize(img_bin[z])
+    io.imsave(str(Path("../test/skeleton")/f"skeleton2d-{path_close.name}"),img_skl)
+
+# Flood Fill All the Skeletonized Images
+for path_skeleton in Path("../test/skeleton").glob("*skeleton2d*.tiff"):
+    img_skl = ~io.imread(str(path_skeleton)).astype(bool)
+    img_fil = np.zeros_like(img_skl)
+    for z in range(len(img_skl)):
+        img_fil[z] = morphology.flood_fill(img_skl[z],(0,0),False,selem=morphology.disk(1))
+    io.imsave(str(Path("../test/vacuole")/f"python-fill-{path_skeleton.name}"),img_fil)
