@@ -1,5 +1,10 @@
 # Test Sample: 1nmpp1-3000_field-2
 
+import numpy as np
+from pathlib import Path
+from skimage import io,util,exposure,filters,morphology
+from organelle_measure.tools import load_nd2_plane
+
 # Difficulties are:
 # - peroxisomes are showing in the unmixed vacuole channel as dot false positives. This is very common.
 # - in some planes vacuole signals do not form a closed ring.
@@ -29,9 +34,7 @@
 # - low=1.0,high=2.0 is not bad
 # - low=1.5,high=2.0 is not good
 
-import numpy as np
-from skimage import io,util,morphology
-from pathlib import Path
+
 # The pipeline is as follows:
 # - start with the unmixed-**.nd2 image
 # - apply a difference of gaussians filter: vph1_diffgaussian-**.tif
@@ -169,3 +172,41 @@ for path_skeleton in Path("../test/skeleton").glob("*skeleton2d*.tiff"):
     for z in range(len(img_skl)):
         img_fil[z] = morphology.flood_fill(img_skl[z],(0,0),False,selem=morphology.disk(1))
     io.imsave(str(Path("../test/vacuole")/f"python-fill-{path_skeleton.name}"),img_fil)
+
+# END of the results reported in the group meeting.
+
+# After segmenting peroxisomes, I realised between thresholding with histogram 
+# and ilastik, there are other ways such as random_walk(). 
+# So I am trying that.
+
+# Try More Sigmas of Gaussian
+# By checking the kernel, I chose sigma=0.75. See `./compare_gaussian_sigma.py`
+path_raw = "../test/raw/unmixed-blue-experimental_1nmpp1-3000_field-2.nd2"
+img_raws = load_nd2_plane(path_raw,frame="zyx",axes="c",idx=1)
+img_gaus = filters.gaussian(img_raws,sigma=0.75)
+epsilon   = (100.*5)/(512*512)
+gauss_max,gauss_min = np.percentile(img_gaus,[100-epsilon,epsilon])
+img_norm = exposure.rescale_intensity(img_gaus,in_range=(gauss_min,gauss_max),out_range=(0.,1.))
+io.imsave(
+    path_raw.replace(
+        "unmixed-blue-experimental",
+        "vph1_gaussian-0-75"
+    ).replace(
+        ".nd2",".tif"
+    ).replace(
+        "raw/","gaussian/"
+    ),
+    img_norm
+)
+
+# Get Rid of Peroxisome from Vacuole Images
+path_gau = "../test/gaussian/vph1_gaussian-0-75_1nmpp1-3000_field-2.tif"
+img_gaus = io.imread(path_gau)
+path_ref = "../test/peroxisome/watershed_pex3_gaussian-0-75_1nmpp1-3000_field-2.tif"
+img_refr = io.imread(path_ref)
+img_clen = np.copy(img_gaus)
+img_clen[img_refr>0] = 0
+io.imsave(
+    path_gau.replace("vph1","cleaned-vph1"),
+    img_clen
+)

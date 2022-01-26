@@ -6,7 +6,7 @@
 import numpy as np
 from pathlib import Path
 from skimage import util,io,filters
-from organelle_measure.util import load_nd2_plane
+from organelle_measure.tools import load_nd2_plane
 
 list_sigma = [0.3,0.5,0.8,1.0,1.5,2.]
 
@@ -54,3 +54,15 @@ for sigma in list_sigma:
 # low=0.8,high=1.0 and 1.5 are good
 # low=1.0,high=2.0 is not bad
 # low=1.5,high=2.0 is not good
+
+# Note after Calculation
+# The FWHM of 1d gaussian function is 2.355*sigma
+# This means at 1.1775*sigma from the origin, the intensity becomes 1/8.
+import plotly.express as px
+test = np.zeros((9,9,9))
+test[4,4,4] = 1
+for sig in [0.3,0.5,0.8,1.0,1.5]:
+    fig = px.imshow(filters.gaussian(test,sigma=sig)[4],title=f"sigma={sig}")
+    fig.show()
+# The result shows sigm=0.8 gives the pixels within ball(1) half weight as center,
+# while the whole affected region is around ball(2).
