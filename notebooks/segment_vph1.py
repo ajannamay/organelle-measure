@@ -2,7 +2,8 @@
 
 import numpy as np
 from pathlib import Path
-from skimage import io,util,exposure,filters,morphology
+from scipy import ndimage as ndi
+from skimage import io,util,exposure,filters,morphology,segmentation,feature,measure
 from organelle_measure.tools import load_nd2_plane
 
 # Difficulties are:
@@ -199,7 +200,7 @@ io.imsave(
     img_norm
 )
 
-# Get Rid of Peroxisome from Vacuole Images
+# Get Rid of Peroxisome from Vacuole Label Images
 path_gau = "../test/gaussian/vph1_gaussian-0-75_1nmpp1-3000_field-2.tif"
 img_gaus = io.imread(path_gau)
 path_ref = "../test/peroxisome/watershed_pex3_gaussian-0-75_1nmpp1-3000_field-2.tif"
@@ -210,3 +211,35 @@ io.imsave(
     path_gau.replace("vph1","cleaned-vph1"),
     img_clen
 )
+# result is shit.
+
+# Get Rid of Peroxisome from Vacule Gaussian Images
+path_pex3 = "../test/gaussian/pex3_gaussian-0-75_1nmpp1-3000_field-2.tif"
+path_vph1 = "../test/gaussian/vph1_gaussian-0-75_1nmpp1-3000_field-2.tif"
+img_pex3 = io.imread(path_pex3)
+img_vph1 = io.imread(path_vph1)
+img_clen = img_vph1 * (1-img_pex3)
+io.imsave(
+    path_vph1.replace("vph1","multiply-vph1"),
+    img_clen
+)
+# result is shit again.
+
+# Check the Percentile and Intensities:
+import plotly.express as px
+percentiles = np.linspace(99.,100.,num=21)
+intensities = np.percentile(img_vph1,percentiles)
+fig = px.line(x=percentiles,y=intensities)
+fig.show()
+# super flat at first and a sudden peak near 1. 
+
+# not tested yet
+path_bin = "../test/binary/bin-vph1_diffgaussian_0-8_1nmpp1-3000_field-2"
+img_biny = io.imread(path_bin)
+img_biny = ~((img_biny-img_biny.min()).astype(bool))
+img_dist = ndi.distance_transform_edt(img_biny)
+idx_maxm = feature.peak_local_max(img_dist,min_distance=5)
+img_maxm = np.zeros_like(img_biny,dtype=np.uint)
+img_maxm[tuple(idx_maxm.T)] = True
+img_maxm = measure.label(img_maxm)
+img_wtsd = segmentation.watershed(-img_dist,markers=img_maxm)
