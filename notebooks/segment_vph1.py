@@ -181,7 +181,6 @@ for path_skeleton in Path("../test/skeleton").glob("*skeleton2d*.tiff"):
 # So I am trying that.
 
 # Try More Sigmas of Gaussian
-# By checking the kernel, I chose sigma=0.75. See `./compare_gaussian_sigma.py`
 path_raw = "../test/raw/unmixed-blue-experimental_1nmpp1-3000_field-2.nd2"
 img_raws = load_nd2_plane(path_raw,frame="zyx",axes="c",idx=1)
 img_gaus = filters.gaussian(img_raws,sigma=0.75)
@@ -199,6 +198,7 @@ io.imsave(
     ),
     img_norm
 )
+# By checking the kernel, I chose sigma=0.75. See `./compare_gaussian_sigma.py`
 
 # Get Rid of Peroxisome from Vacuole Label Images
 path_gau = "../test/gaussian/vph1_gaussian-0-75_1nmpp1-3000_field-2.tif"
@@ -233,13 +233,16 @@ fig = px.line(x=percentiles,y=intensities)
 fig.show()
 # super flat at first and a sudden peak near 1. 
 
-# not tested yet
+# Segmentation by random walk didn't continue because I want to have something 
+# to show Shankar. Therefore, I turned back to ilastik.
+
+# Use Watershed on Ilastik Segmentation
 path_bin = "../test/binary/bin-vph1_diffgaussian_0-8_1nmpp1-3000_field-2"
 img_biny = io.imread(path_bin)
 img_biny = ~((img_biny-img_biny.min()).astype(bool))
 img_dist = ndi.distance_transform_edt(img_biny)
-idx_maxm = feature.peak_local_max(img_dist,min_distance=5)
-img_maxm = np.zeros_like(img_biny,dtype=np.uint)
-img_maxm[tuple(idx_maxm.T)] = True
-img_maxm = measure.label(img_maxm)
-img_wtsd = segmentation.watershed(-img_dist,markers=img_maxm)
+# idx_maxm = feature.peak_local_max(img_dist,min_distance=5)
+# img_maxm = np.zeros_like(img_biny,dtype=np.uint)
+# img_maxm[tuple(idx_maxm.T)] = True
+# img_maxm = measure.label(img_maxm)
+img_wtsd = segmentation.watershed(-img_dist,mask=img_biny)
