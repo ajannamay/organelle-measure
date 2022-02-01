@@ -236,13 +236,77 @@ fig.show()
 # Segmentation by random walk didn't continue because I want to have something 
 # to show Shankar. Therefore, I turned back to ilastik.
 
-# Use Watershed on Ilastik Segmentation
-path_bin = "../test/binary/bin-vph1_diffgaussian_0-8_1nmpp1-3000_field-2"
-img_biny = io.imread(path_bin)
-img_biny = ~((img_biny-img_biny.min()).astype(bool))
-img_dist = ndi.distance_transform_edt(img_biny)
-# idx_maxm = feature.peak_local_max(img_dist,min_distance=5)
-# img_maxm = np.zeros_like(img_biny,dtype=np.uint)
-# img_maxm[tuple(idx_maxm.T)] = True
-# img_maxm = measure.label(img_maxm)
-img_wtsd = segmentation.watershed(-img_dist,mask=img_biny)
+# Use Watershed on Ilastik Skeleton
+path_bin = "../test/skeleton/skeleton-vph1_diffgaussian_0-75_1nmpp1-3000_field-2-1.tif"
+img_biny = io.imread(path_bin).astype(bool)
+img_dist = np.zeros_like(img_biny,dtype=float)
+img_wtsd = np.zeros_like(img_biny,dtype=int)
+for z in range(len(img_biny)):
+    img_dist[z] = ndi.distance_transform_edt(img_biny[z])
+    img_wtsd[z] = segmentation.watershed(-img_dist[z],mask=img_biny[z])
+io.imsave(
+    "../test/vacuole/watershedzbyz-vph1_diffgaussian_0-75_1nmpp1-3000_field-2.tif",
+    util.img_as_uint(img_wtsd)
+)
+# The result is unexpectedly amazingly good!
+
+def intersection_over_union(bool1,bool2):
+    return (bool1*bool2)/(bool1+bool2)
+
+path_fill = "../test/vacuole/"
+path_wtsd = "../test/vacuole/"
+img_fill = io.imread(path_fill)
+img_wtsd = io.imread(path_wtsd)
+img_core = measure.label(img_fill)
+num_z = len(img_core)
+img_xpnd = np.copy(img_core)
+for prop in measure.regionprops(img_core):
+    
+    if prop.area<3:
+        img_xpnd[img_core==prop.label] = 0
+        continue
+    
+    z_coords = prop.coords[:,0]
+    z_max,z_min = z_coords.max(),z_coords.min()
+    
+    ref_xpnd = img_xpnd[z_min] # change to img_core?
+    for z in range(z_min-1,-1,-1):
+        ref_wtsd = img_wtsd[z]
+        mask_last = (ref_xpnd==prop.label)
+        count_last = len(ref_xpnd[mask_last])
+        sample = ref_wtsd[mask_last]
+        list_gray = []
+        list_IoU  = []
+        for gray in np.unique(sample):
+            mask_this = (ref_wtsd==gray)
+            count_this = len(ref_wtsd[mask_this])
+            if count_this < (3*count_last):
+                list_gray.append(gray)
+                list_IoU.append(intersection_over_union(mask_this,mask_last))
+        if len(list_IoU) == 0:
+            break
+        chosen = list_gray[np.argmax(list_IoU)]
+        img_xpnd[z,ref_wtsd==chosen] = prop.label
+        ref_xpnd = img_xpnd[z]
+        
+    ref_xpnd = img_xpnd[z_max] # change to img_core?
+    for z in range(z_max+1,num_z):
+        ref_wtsd = img_wtsd[z]
+        mask_last = (ref_xpnd==prop.label)
+        count_last = len(ref_xpnd[mask_last])
+        sample = ref_wtsd[mask_last]
+        list_gray = []
+        list_IoU  = []
+        for gray in np.unique(sample):
+            mask_this = (ref_wtsd==gray)
+            count_this = len(ref_wtsd[mask_this])
+            if count_this < (3*count_last):
+                list_gray.append(gray)
+                list_IoU.append(intersection_over_union(mask_this,mask_last))
+        if len(list_IoU) == 0:
+            break
+        chosen = list_gray[np.argmax(list_IoU)]
+        img_xpnd[z,ref_wtsd==chosen] = prop.label
+        ref_xpnd = img_xpnd[z]
+
+
