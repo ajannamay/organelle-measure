@@ -251,62 +251,70 @@ io.imsave(
 # The result is unexpectedly amazingly good!
 
 def intersection_over_union(bool1,bool2):
-    return (bool1*bool2)/(bool1+bool2)
+    return np.count_nonzero(bool1*bool2)/np.count_nonzero(bool1+bool2)
+def find_hidden_object(expand2d,watershed2d,label):
+    """
+    expand2d: 2d integer image with the objects on previous plane.
+    watershed: 2d watershed image on the current plane
+    label: label of the object of interest
+    """
+    mask_last = (expand2d==label)
+    count_last = np.count_nonzero(mask_last)
+    sample = watershed2d[mask_last]
+    list_gray = []
+    list_IoU  = []
+    for gray in np.unique(sample):
+        if gray == 0:
+            continue
+        mask_this = (watershed2d==gray)
+        count_this = np.count_nonzero(mask_this)
+        if count_this < (1.5*count_last):
+            list_gray.append(gray)
+            list_IoU.append(intersection_over_union(mask_this,mask_last))
+    if len(list_IoU) == 0:
+        return None
+    else:
+        return list_gray[np.argmax(list_IoU)]
 
-path_fill = "../test/vacuole/"
-path_wtsd = "../test/vacuole/"
+path_wtsd = "../test/vacuole/watershedzbyz-vph1_diffgaussian_0-75_1nmpp1-3000_field-2.tif"
+path_fill = "../test/vacuole/skeleton-fill-vph1_gaussian-0-75_1nmpp1-3000_field-2.tif"
 img_fill = io.imread(path_fill)
 img_wtsd = io.imread(path_wtsd)
 img_core = measure.label(img_fill)
+# io.imsave(
+#     "../test/vacuole/label-vph1_gaussian-0-75_1nmpp1-3000_field-2.tif",
+#     util.img_as_uint(img_core)
+# )
 num_z = len(img_core)
 img_xpnd = np.copy(img_core)
 for prop in measure.regionprops(img_core):
-    
+    # exclude very small blobs
     if prop.area<3:
         img_xpnd[img_core==prop.label] = 0
-        continue
-    
+        continue # the prop loop
+    # find the range on z axis
     z_coords = prop.coords[:,0]
     z_max,z_min = z_coords.max(),z_coords.min()
-    
-    ref_xpnd = img_xpnd[z_min] # change to img_core?
+    # expand towards -z direction
+    ref_xpnd = img_xpnd[z_min] 
     for z in range(z_min-1,-1,-1):
         ref_wtsd = img_wtsd[z]
-        mask_last = (ref_xpnd==prop.label)
-        count_last = len(ref_xpnd[mask_last])
-        sample = ref_wtsd[mask_last]
-        list_gray = []
-        list_IoU  = []
-        for gray in np.unique(sample):
-            mask_this = (ref_wtsd==gray)
-            count_this = len(ref_wtsd[mask_this])
-            if count_this < (3*count_last):
-                list_gray.append(gray)
-                list_IoU.append(intersection_over_union(mask_this,mask_last))
-        if len(list_IoU) == 0:
+        chosen = find_hidden_object(ref_xpnd,ref_wtsd,prop.label)
+        if chosen is None:
             break
-        chosen = list_gray[np.argmax(list_IoU)]
         img_xpnd[z,ref_wtsd==chosen] = prop.label
         ref_xpnd = img_xpnd[z]
-        
-    ref_xpnd = img_xpnd[z_max] # change to img_core?
+    # expand towards +z direction
+    ref_xpnd = img_xpnd[z_max] 
     for z in range(z_max+1,num_z):
         ref_wtsd = img_wtsd[z]
-        mask_last = (ref_xpnd==prop.label)
-        count_last = len(ref_xpnd[mask_last])
-        sample = ref_wtsd[mask_last]
-        list_gray = []
-        list_IoU  = []
-        for gray in np.unique(sample):
-            mask_this = (ref_wtsd==gray)
-            count_this = len(ref_wtsd[mask_this])
-            if count_this < (3*count_last):
-                list_gray.append(gray)
-                list_IoU.append(intersection_over_union(mask_this,mask_last))
-        if len(list_IoU) == 0:
+        chosen = find_hidden_object(ref_xpnd,ref_wtsd,prop.label)
+        if chosen is None:
             break
-        chosen = list_gray[np.argmax(list_IoU)]
         img_xpnd[z,ref_wtsd==chosen] = prop.label
         ref_xpnd = img_xpnd[z]
-
+io.imsave(
+    "../test/vacuole/hiddenfound--vph1_diffgaussian_0-75_1nmpp1-3000_field-2.tif",
+    util.img_as_uint(img_xpnd)
+)
 
