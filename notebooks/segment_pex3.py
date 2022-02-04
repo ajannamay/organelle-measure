@@ -14,6 +14,10 @@ from skimage import io,filters,exposure,feature,segmentation,util,measure,morpho
 from organelle_measure.tools import load_nd2_plane
 
 # Gaussian
+# maybe we should normalize when reading the nd2 file, and then do the gaussian 
+# without normalization other than truncating values > 1.
+# because usually the nd2 pex3 signals are over satuated so the maximum is 
+# determined.
 path_raws = "../test/raw/unmixed-blue-experimental_1nmpp1-3000_field-2.nd2"
 img_raws = load_nd2_plane(path_raws,frame="zyx",axes="c",idx=0)
 img_gaus = filters.gaussian(img_raws,sigma=0.75)
