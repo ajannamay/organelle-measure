@@ -268,9 +268,10 @@ def find_hidden_object(expand2d,watershed2d,label):
             continue
         mask_this = (watershed2d==gray)
         count_this = np.count_nonzero(mask_this)
-        if count_this < (1.5*count_last):
+        iou = intersection_over_union(mask_this,mask_last)
+        if (count_this<(1.5*count_last)) and (iou>0.2):
             list_gray.append(gray)
-            list_IoU.append(intersection_over_union(mask_this,mask_last))
+            list_IoU.append(iou)
     if len(list_IoU) == 0:
         return None
     else:
@@ -314,7 +315,7 @@ for prop in measure.regionprops(img_core):
         img_xpnd[z,ref_wtsd==chosen] = prop.label
         ref_xpnd = img_xpnd[z]
 io.imsave(
-    "../test/vacuole/hiddenfound--vph1_diffgaussian_0-75_1nmpp1-3000_field-2.tif",
+    "../test/vacuole/hiddenfound-vph1_diffgaussian_0-75_1nmpp1-3000_field-2.tif",
     util.img_as_uint(img_xpnd)
 )
 

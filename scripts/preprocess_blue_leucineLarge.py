@@ -4,8 +4,8 @@ from pathlib import Path
 from skimage import filters
 from organelle_measure.tools import load_nd2_plane
 
-folder_raw = "../data/raw/EYrainbow_leucine_large"
-folder_out = "../data/leucine-large-blue-gaussian"
+folder_raw = "./data/raw/EYrainbow_leucine_large"
+folder_out = "./data/leucine-large-blue-gaussian"
 for path_raw in Path(folder_raw).glob("spectral-blue*.nd2"):
     img_raw = load_nd2_plane(str(path_raw),frame="czyx",axes="t",idx=0).astype(int)
     img_gau = np.zeros_like(img_raw,dtype=int)
