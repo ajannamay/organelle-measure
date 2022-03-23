@@ -1,3 +1,4 @@
+from matplotlib import markers
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -26,8 +27,8 @@ subfolders = [
     "EYrainbowWhi5Up_betaEstrodiol"
 ]
 
-folder_i = "./results/"
-folder_o = "./figures/"
+folder_i = "./data/results"
+folder_o = "./data/figures"
 
 
 # READ FILES
@@ -94,7 +95,7 @@ pivot_cell_bycell.loc[:,"effective-volume"] = (2.)*pivot_cell_bycell.loc[:,"area
 # data
 pivot_orga_bycell_mean = df_orga_all.loc[:,["folder","condition","field","organelle","idx-cell","volume-pixel"]].groupby(["folder","condition","field","idx-cell","organelle"]).mean()["volume-pixel"]
 pivot_orga_bycell_nums = df_orga_all.loc[:,["folder","condition","field","organelle","idx-cell","volume-pixel"]].groupby(["folder","condition","field","idx-cell","organelle"]).count()["volume-pixel"]
-pivot_orga_bycell_total = df_orga_all.loc[:,["folder","condition","field","organelle","idx-cell","volume-pixel"]].groupby(["folder","condition","field","idx-cell","organelle"]).sum()["volume-pixel"]
+pivot_orga_bycell_totl = df_orga_all.loc[:,["folder","condition","field","organelle","idx-cell","volume-pixel"]].groupby(["folder","condition","field","idx-cell","organelle"]).sum()["volume-pixel"]
 # index
 index_bycell = pd.MultiIndex.from_tuples(
     [(*index,orga) for index in pivot_cell_bycell.index.to_list() for orga in organelles],
@@ -104,7 +105,7 @@ pivot_bycell = pd.DataFrame(index=index_bycell)
 # combine data with index
 pivot_bycell.loc[pivot_orga_bycell_mean.index,"mean"] = pivot_orga_bycell_mean
 pivot_bycell.loc[pivot_orga_bycell_mean.index,"count"] = pivot_orga_bycell_nums
-pivot_bycell.loc[pivot_orga_bycell_mean.index,"total"] = pivot_orga_bycell_total
+pivot_bycell.loc[pivot_orga_bycell_mean.index,"total"] = pivot_orga_bycell_totl
 pivot_bycell.fillna(0.,inplace=True)
 # include cell data
 pivot_bycell.reset_index("organelle",inplace=True) # comment out after 1st run 
@@ -210,8 +211,16 @@ def plot_histo_box(df,prop_y,prop_x="cell_area",savepath=""):
 
 for folder in subfolders:
     for orga in organelles:
-        plot_histo_violin(df_bycell.loc[df_bycell["organelle"].eq(orga) & df_bycell["folder"].eq(folder)],"condition","mean",f"{folder_o}cellular_mean_vs_condition_{folder}_{orga}.html")
-        plot_histo_violin(df_bycell.loc[df_bycell["organelle"].eq(orga) & df_bycell["folder"].eq(folder)],"condition","count",f"{folder_o}cellular_count_vs_condition_{folder}_{orga}.html")
+        plot_histo_violin(
+            df_bycell.loc[df_bycell["organelle"].eq(orga) & df_bycell["folder"].eq(folder)]
+            ,"condition","mean",
+            f"{folder_o}/cellular_mean_vs_condition_{folder}_{orga}.html"
+        )
+        plot_histo_violin(
+            df_bycell.loc[df_bycell["organelle"].eq(orga) & df_bycell["folder"].eq(folder)],
+            "condition","count",
+            f"{folder_o}/cellular_count_vs_condition_{folder}_{orga}.html"
+        )
 
 
 def plot_group_hist(df,prop_y,prop_x="cell_area",savepath=""):
@@ -238,20 +247,26 @@ def plot_group_hist(df,prop_y,prop_x="cell_area",savepath=""):
 
 for folder in subfolders:
     for orga in organelles:
-        plot_group_hist(df_bycell.loc[df_bycell["organelle"].eq(orga) & df_bycell["folder"].eq(folder)],"condition","mean",f"{folder_o}organelle_mean_vs_condition_{folder}_{orga}.html")
+        plot_group_hist(
+            df_bycell.loc[df_bycell["organelle"].eq(orga) & df_bycell["folder"].eq(folder)],
+            "condition","mean",
+            f"{folder_o}/organelle_mean_vs_condition_{folder}_{orga}.html"
+        )
 
 
 from sklearn.decomposition import PCA
 
+# PCA with conditions
+dict_explained_variance_ratio = {}
 for folder in subfolders:
-    df_orga_percell = df_bycell[df_bycell["folder"].eq(folder)].set_index(["condition","field","idx-cell"])
-    idx = df_orga_percell.groupby(["condition","field","idx-cell"]).count().index
+    df_orga_perfolder = df_bycell[df_bycell["folder"].eq(folder)].set_index(["condition","field","idx-cell"])
+    idx = df_orga_perfolder.groupby(["condition","field","idx-cell"]).count().index
     df_pca = pd.DataFrame(index=idx,columns=organelles)
     for orga in organelles:
-        df_pca[orga] = df_orga_percell.loc[df_orga_percell["organelle"].eq(orga),"total-fraction"]
+        df_pca[orga] = df_orga_perfolder.loc[df_orga_perfolder["organelle"].eq(orga),"total-fraction"]
     df_pca.reset_index(inplace=True)
     df_pca["condition"] = df_pca["condition"]/df_pca["condition"].max()
-    df_orga_percell.reset_index(inplace=True)
+    df_orga_perfolder.reset_index(inplace=True)
     df_pca["na_count"] = df_pca.isna().sum(axis=1)    
 
     df_pca_washed = df_pca.fillna(0.)    
@@ -261,25 +276,87 @@ for folder in subfolders:
     pca = PCA(n_components=7)
     pca.fit(np_pca)
     pca_components = [comp if comp[0]>0 else -comp for comp in pca.components_ ]
-    df_components = pd.DataFrame(pca_components,columns=["condition",*organelles])
+
+    dict_explained_variance_ratio[folder] = pca.explained_variance_ratio_
+    # df_components = pd.DataFrame(pca_components,columns=["condition",*organelles])
 
 
-    base0 = pca_components[0]
-    base1 = pca_components[1]
-    base2 = pca_components[2]
+    # base0 = pca_components[0]
+    # base1 = pca_components[1]
+    # base2 = pca_components[2]
 
-    df_pca_washed["proj0"] = df_pca_washed.apply(lambda x:np.dot(base0,x.loc[["condition",*organelles]]),axis=1)
-    df_pca_washed["proj1"] = df_pca_washed.apply(lambda x:np.dot(base1,x.loc[["condition",*organelles]]),axis=1)
-    df_pca_washed["proj2"] = df_pca_washed.apply(lambda x:np.dot(base2,x.loc[["condition",*organelles]]),axis=1)
+    # df_pca_washed["proj0"] = df_pca_washed.apply(lambda x:np.dot(base0,x.loc[["condition",*organelles]]),axis=1)
+    # df_pca_washed["proj1"] = df_pca_washed.apply(lambda x:np.dot(base1,x.loc[["condition",*organelles]]),axis=1)
+    # df_pca_washed["proj2"] = df_pca_washed.apply(lambda x:np.dot(base2,x.loc[["condition",*organelles]]),axis=1)
 
-    fig01 = px.scatter(df_pca_washed,x="proj0",y="proj1",color="condition")
-    fig02 = px.scatter(df_pca_washed,x="proj0",y="proj2",color="condition")
-    fig12 = px.scatter(df_pca_washed,x="proj1",y="proj2",color="condition")
+    # fig01 = px.scatter(df_pca_washed,x="proj0",y="proj1",color="condition")
+    # fig02 = px.scatter(df_pca_washed,x="proj0",y="proj2",color="condition")
+    # fig12 = px.scatter(df_pca_washed,x="proj1",y="proj2",color="condition")
 
-    fig01.write_html(f"{folder_o}pca_projection_{folder}_proj01.html")
-    fig02.write_html(f"{folder_o}pca_projection_{folder}_proj02.html")
-    fig12.write_html(f"{folder_o}pca_projection_{folder}_proj12.html")
+    # fig01.write_html(f"{folder_o}/pca_projection_{folder}_proj01.html")
+    # fig02.write_html(f"{folder_o}/pca_projection_{folder}_proj02.html")
+    # fig12.write_html(f"{folder_o}/pca_projection_{folder}_proj12.html")
 
-    fig_components = px.imshow(pca_components)
-    fig_components.write_html(f"{folder_o}pca_components_{folder}.html")
+    # fig_components = px.imshow(pca_components)
+    # fig_components.write_html(f"{folder_o}/pca_components_{folder}.html")
 
+# PCA without conditions
+dict_explained_variance_ratio = {}
+for folder in subfolders:
+    df_orga_perfolder = df_bycell[df_bycell["folder"].eq(folder)].set_index(["condition","field","idx-cell"])
+    idx = df_orga_perfolder.groupby(["condition","field","idx-cell"]).count().index
+    df_pca = pd.DataFrame(index=idx,columns=organelles)
+    for orga in organelles:
+        df_pca[orga] = df_orga_perfolder.loc[df_orga_perfolder["organelle"].eq(orga),"total-fraction"]
+    df_pca.reset_index(inplace=True)
+    # Different from above! No normalization of condition.
+    df_orga_perfolder.reset_index(inplace=True)
+    df_pca["na_count"] = df_pca.isna().sum(axis=1)    
+
+    df_pca_washed = df_pca.fillna(0.)    
+    print(folder,np.bincount(df_pca["na_count"]))
+
+    np_pca = df_pca_washed[organelles].to_numpy()
+    pca = PCA(n_components=6)
+    pca.fit(np_pca)
+
+    dict_explained_variance_ratio[folder] = pca.explained_variance_ratio_
+    # pca_components = [comp if comp[0]>0 else -comp for comp in pca.components_ ]
+    # df_components = pd.DataFrame(pca_components,columns=[*organelles])
+
+
+    # base0 = pca_components[0]
+    # base1 = pca_components[1]
+    # base2 = pca_components[2]
+
+    # df_pca_washed["proj0"] = df_pca_washed.apply(lambda x:np.dot(base0,x.loc[organelles]),axis=1)
+    # df_pca_washed["proj1"] = df_pca_washed.apply(lambda x:np.dot(base1,x.loc[organelles]),axis=1)
+    # df_pca_washed["proj2"] = df_pca_washed.apply(lambda x:np.dot(base2,x.loc[organelles]),axis=1)
+
+    # figproj = go.Figure()
+    # figcolors = ["purple","blue","green","yellow","orange","red"]
+    # for j,condi in enumerate(pd.unique(df_pca_washed["condition"])):
+    #     figproj.add_trace(
+    #         go.Scatter3d(
+    #             x=df_pca_washed.loc[df_pca_washed["condition"].eq(condi),"proj0"],
+    #             y=df_pca_washed.loc[df_pca_washed["condition"].eq(condi),"proj1"],
+    #             z=df_pca_washed.loc[df_pca_washed["condition"].eq(condi),"proj2"],
+    #             name=condi,
+    #             mode="markers",
+    #             marker=dict(size=2,color=figcolors[j],opacity=0.8)
+    #         )
+    #     )
+    # figproj.write_html(f"{folder_o}/pca_nocond_projection3d_{folder}.html")
+
+    # fig01 = px.scatter(df_pca_washed,x="proj0",y="proj1",color="condition")
+    # fig02 = px.scatter(df_pca_washed,x="proj0",y="proj2",color="condition")
+    # fig12 = px.scatter(df_pca_washed,x="proj1",y="proj2",color="condition")
+
+    # fig01.write_html(f"{folder_o}/pca_nocond_projection_{folder}_proj01.html")
+    # fig02.write_html(f"{folder_o}/pca_nocond_projection_{folder}_proj02.html")
+    # fig12.write_html(f"{folder_o}/pca_nocond_projection_{folder}_proj12.html")
+
+    # fig_components = px.imshow(pca_components)
+    # fig_components.write_html(f"{folder_o}/pca_nocond_components_{folder}.html")
+df_explained_variance_ratio = pd.DataFrame(dict_explained_variance_ratio)
+df_explained_variance_ratio.to_csv(f"{folder_o}/explained_variance_ratio.csv",index=False)
