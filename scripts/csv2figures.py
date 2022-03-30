@@ -330,32 +330,32 @@ for folder in subfolders:
     pca.fit(np_pca)
 
     dict_explained_variance_ratio[folder] = pca.explained_variance_ratio_
-    # pca_components = [comp if comp[0]>0 else -comp for comp in pca.components_ ]
-    # df_components = pd.DataFrame(pca_components,columns=[*organelles])
+    pca_components = [comp if comp[0]>0 else -comp for comp in pca.components_ ]
+    df_components = pd.DataFrame(pca_components,columns=[*organelles])
 
 
-    # base0 = pca_components[0]
-    # base1 = pca_components[1]
-    # base2 = pca_components[2]
+    base0 = pca_components[0]
+    base1 = pca_components[1]
+    base2 = pca_components[2]
 
-    # df_pca_washed["proj0"] = df_pca_washed.apply(lambda x:np.dot(base0,x.loc[organelles]),axis=1)
-    # df_pca_washed["proj1"] = df_pca_washed.apply(lambda x:np.dot(base1,x.loc[organelles]),axis=1)
-    # df_pca_washed["proj2"] = df_pca_washed.apply(lambda x:np.dot(base2,x.loc[organelles]),axis=1)
+    df_pca_washed["proj0"] = df_pca_washed.apply(lambda x:np.dot(base0,x.loc[organelles]),axis=1)
+    df_pca_washed["proj1"] = df_pca_washed.apply(lambda x:np.dot(base1,x.loc[organelles]),axis=1)
+    df_pca_washed["proj2"] = df_pca_washed.apply(lambda x:np.dot(base2,x.loc[organelles]),axis=1)
 
-    # figproj = go.Figure()
-    # figcolors = ["purple","blue","green","yellow","orange","red"]
-    # for j,condi in enumerate(pd.unique(df_pca_washed["condition"])):
-    #     figproj.add_trace(
-    #         go.Scatter3d(
-    #             x=df_pca_washed.loc[df_pca_washed["condition"].eq(condi),"proj0"],
-    #             y=df_pca_washed.loc[df_pca_washed["condition"].eq(condi),"proj1"],
-    #             z=df_pca_washed.loc[df_pca_washed["condition"].eq(condi),"proj2"],
-    #             name=condi,
-    #             mode="markers",
-    #             marker=dict(size=2,color=figcolors[j],opacity=0.8)
-    #         )
-    #     )
-    # figproj.write_html(f"{folder_o}/pca_nocond_projection3d_{folder}.html")
+    figproj = go.Figure()
+    figcolors = ["purple","blue","green","yellow","orange","red"]
+    for j,condi in enumerate(pd.unique(df_pca_washed["condition"])):
+        figproj.add_trace(
+            go.Scatter3d(
+                x=df_pca_washed.loc[df_pca_washed["condition"].eq(condi),"proj0"],
+                y=df_pca_washed.loc[df_pca_washed["condition"].eq(condi),"proj1"],
+                z=df_pca_washed.loc[df_pca_washed["condition"].eq(condi),"proj2"],
+                name=condi,
+                mode="markers",
+                marker=dict(size=2,color=figcolors[j],opacity=0.8)
+            )
+        )
+    figproj.write_html(f"{folder_o}/pca_nocond_projection3d_{folder}.html")
 
     # fig01 = px.scatter(df_pca_washed,x="proj0",y="proj1",color="condition")
     # fig02 = px.scatter(df_pca_washed,x="proj0",y="proj2",color="condition")
@@ -370,7 +370,7 @@ for folder in subfolders:
 df_explained_variance_ratio = pd.DataFrame(dict_explained_variance_ratio)
 df_explained_variance_ratio.to_csv(f"{folder_o}/explained_variance_ratio.csv",index=False)
 
-# PCA of volume fraction normalized rank, without conditions
+# PCA of volume fraction normalized rank, without conditions. NOT WORKING!
 dict_explained_variance_ratio = {}
 for folder in subfolders:
     df_orga_perfolder = df_bycell[df_bycell["folder"].eq(folder)].set_index(["condition","field","idx-cell"])
@@ -416,7 +416,7 @@ for folder in subfolders:
                 marker=dict(size=2,color=figcolors[j],opacity=0.8)
             )
         )
-    figproj.write_html(f"{folder_o}/pca_nocond_projection3d_{folder}.html")
+    figproj.write_html(f"{folder_o}/pca_rank_projection3d_{folder}.html")
 
     fig01 = px.scatter(df_pca_washed,x="proj0",y="proj1",color="condition")
     fig02 = px.scatter(df_pca_washed,x="proj0",y="proj2",color="condition")
@@ -431,3 +431,64 @@ for folder in subfolders:
 df_explained_variance_ratio = pd.DataFrame(dict_explained_variance_ratio)
 df_explained_variance_ratio.to_csv(f"{folder_o}/explained_variance_ratio_rank.csv",index=False)
 
+
+# PCA of volume fraction normalized with, without conditions.
+dict_explained_variance_ratio = {}
+for folder in subfolders:
+    df_orga_perfolder = df_bycell[df_bycell["folder"].eq(folder)].set_index(["condition","field","idx-cell"])
+    idx = df_orga_perfolder.groupby(["condition","field","idx-cell"]).count().index
+    df_pca = pd.DataFrame(index=idx,columns=organelles)
+    for orga in organelles:
+        df_pca_orga_raw = df_orga_perfolder.loc[df_orga_perfolder["organelle"].eq(orga),"total-fraction"]
+        df_pca[orga] = (df_pca_orga_raw - df_pca_orga_raw.mean())/df_pca_orga_raw.std()
+    df_pca.reset_index(inplace=True)
+    # Different from above! No normalization of condition.
+    df_orga_perfolder.reset_index(inplace=True)
+    df_pca["na_count"] = df_pca.isna().sum(axis=1)    
+
+    df_pca_washed = df_pca.fillna(0.)    
+    print(folder,np.bincount(df_pca["na_count"]))
+
+    np_pca = df_pca_washed[organelles].to_numpy()
+    pca = PCA(n_components=6)
+    pca.fit(np_pca)
+
+    dict_explained_variance_ratio[folder] = pca.explained_variance_ratio_
+    pca_components = [comp if comp[0]>0 else -comp for comp in pca.components_ ]
+    df_components = pd.DataFrame(pca_components,columns=[*organelles])
+
+    base0 = pca_components[0]
+    base1 = pca_components[1]
+    base2 = pca_components[2]
+
+    df_pca_washed["proj0"] = df_pca_washed.apply(lambda x:np.dot(base0,x.loc[organelles]),axis=1)
+    df_pca_washed["proj1"] = df_pca_washed.apply(lambda x:np.dot(base1,x.loc[organelles]),axis=1)
+    df_pca_washed["proj2"] = df_pca_washed.apply(lambda x:np.dot(base2,x.loc[organelles]),axis=1)
+
+    figproj = go.Figure()
+    figcolors = ["purple","blue","green","yellow","orange","red"]
+    for j,condi in enumerate(pd.unique(df_pca_washed["condition"])):
+        figproj.add_trace(
+            go.Scatter3d(
+                x=df_pca_washed.loc[df_pca_washed["condition"].eq(condi),"proj0"],
+                y=df_pca_washed.loc[df_pca_washed["condition"].eq(condi),"proj1"],
+                z=df_pca_washed.loc[df_pca_washed["condition"].eq(condi),"proj2"],
+                name=condi,
+                mode="markers",
+                marker=dict(size=2,color=figcolors[j],opacity=0.8)
+            )
+        )
+    figproj.write_html(f"{folder_o}/pca_norm-mean-std_projection3d_{folder}.html")
+
+    fig01 = px.scatter(df_pca_washed,x="proj0",y="proj1",color="condition")
+    fig02 = px.scatter(df_pca_washed,x="proj0",y="proj2",color="condition")
+    fig12 = px.scatter(df_pca_washed,x="proj1",y="proj2",color="condition")
+
+    fig01.write_html(f"{folder_o}/pca_norm-mean-std_projection_{folder}_proj01.html")
+    fig02.write_html(f"{folder_o}/pca_norm-mean-std_projection_{folder}_proj02.html")
+    fig12.write_html(f"{folder_o}/pca_norm-mean-std_projection_{folder}_proj12.html")
+
+    fig_components = px.imshow(pca_components,x=organelles,y=[f"PC{i}" for i in range(6)])
+    fig_components.write_html(f"{folder_o}/pca_norm-mean-std_components_{folder}.html")
+df_explained_variance_ratio = pd.DataFrame(dict_explained_variance_ratio)
+df_explained_variance_ratio.to_csv(f"{folder_o}/explained_variance_ratio_norm-mean-std.csv",index=False)
