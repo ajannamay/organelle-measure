@@ -1,4 +1,3 @@
-from matplotlib import markers
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -6,6 +5,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from pathlib import Path
+
+px_x,px_y,px_z = 0.41,0.41,0.20
 
 organelles = [
     "peroxisome",
@@ -91,11 +92,19 @@ df_orga_all = df_orga_all.astype(type_orga)
 # GROUP BY CELL
 
 pivot_cell_bycell = df_cell_all.set_index(["folder","condition","field","idx-cell"])
-pivot_cell_bycell.loc[:,"effective-volume"] = (2.)*pivot_cell_bycell.loc[:,"area"]*np.sqrt(pivot_cell_bycell.loc[:,"area"])/np.sqrt(np.pi) 
-# data
-pivot_orga_bycell_mean = df_orga_all.loc[:,["folder","condition","field","organelle","idx-cell","volume-pixel"]].groupby(["folder","condition","field","idx-cell","organelle"]).mean()["volume-pixel"]
-pivot_orga_bycell_nums = df_orga_all.loc[:,["folder","condition","field","organelle","idx-cell","volume-pixel"]].groupby(["folder","condition","field","idx-cell","organelle"]).count()["volume-pixel"]
-pivot_orga_bycell_totl = df_orga_all.loc[:,["folder","condition","field","organelle","idx-cell","volume-pixel"]].groupby(["folder","condition","field","idx-cell","organelle"]).sum()["volume-pixel"]
+pivot_cell_bycell.loc[:,"effective-volume"] = (px_x*px_y)*np.sqrt(px_x*px_y)*(2.)*pivot_cell_bycell.loc[:,"area"]*np.sqrt(pivot_cell_bycell.loc[:,"area"])/np.sqrt(np.pi) 
+
+# # (DEPRECATED) data (in unit of pixels)
+# pivot_orga_bycell_mean = df_orga_all.loc[:,["folder","condition","field","organelle","idx-cell","volume-pixel"]].groupby(["folder","condition","field","idx-cell","organelle"]).mean()["volume-pixel"]
+# pivot_orga_bycell_nums = df_orga_all.loc[:,["folder","condition","field","organelle","idx-cell","volume-pixel"]].groupby(["folder","condition","field","idx-cell","organelle"]).count()["volume-pixel"]
+# pivot_orga_bycell_totl = df_orga_all.loc[:,["folder","condition","field","organelle","idx-cell","volume-pixel"]].groupby(["folder","condition","field","idx-cell","organelle"]).sum()["volume-pixel"]
+
+# data (in unit of microns)
+
+
+pivot_orga_bycell_mean = df_orga_all.loc[:,["folder","condition","field","organelle","idx-cell","volume-micron"]].groupby(["folder","condition","field","idx-cell","organelle"]).mean()["volume-pixel"]
+pivot_orga_bycell_nums = df_orga_all.loc[:,["folder","condition","field","organelle","idx-cell","volume-micron"]].groupby(["folder","condition","field","idx-cell","organelle"]).count()["volume-pixel"]
+pivot_orga_bycell_totl = df_orga_all.loc[:,["folder","condition","field","organelle","idx-cell","volume-micron"]].groupby(["folder","condition","field","idx-cell","organelle"]).sum()["volume-pixel"]
 # index
 index_bycell = pd.MultiIndex.from_tuples(
     [(*index,orga) for index in pivot_cell_bycell.index.to_list() for orga in organelles],
