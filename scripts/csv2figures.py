@@ -90,7 +90,6 @@ df_orga_all = df_orga_all.astype(type_orga)
 
 
 # GROUP BY CELL
-
 df_cell_all.loc[:,"effective-volume"] = (px_x*px_y)*np.sqrt(px_x*px_y)*(2.)*df_cell_all.loc[:,"area"]*np.sqrt(df_cell_all.loc[:,"area"])/np.sqrt(np.pi) 
 pivot_cell_bycell = df_cell_all.set_index(["folder","condition","field","idx-cell"])
 
@@ -125,7 +124,7 @@ pivot_bycell.loc[:,"cell-volume"] = pivot_cell_bycell.loc[:,"effective-volume"]
 pivot_bycell.loc[:,"total-fraction"] = pivot_bycell.loc[:,"total"]/pivot_bycell.loc[:,"cell-volume"]
 # clean up
 df_bycell = pivot_bycell.reset_index()
-df_bycell.loc[df_bycell["organelle"].eq("vacuole") & df_bycell["total"].eq(0.)] = 0
+df_bycell.loc[(df_bycell["organelle"].eq("vacuole") & df_bycell["total"].eq(0.)),"count"] = 0
 pivot_bycell = df_bycell.set_index(index_bycell)
 
 
@@ -133,26 +132,27 @@ pivot_bycell = df_bycell.set_index(index_bycell)
 for folder in subfolders:
     pv_bycell = df_bycell[df_bycell['folder'].eq(folder)].set_index(['condition','field','idx-cell'])
     df_corrcoef = pd.DataFrame(index=pivot_cell_bycell.loc[folder,:].index)
-    df_corrcoef.loc[:,'effective-length'] = np.sqrt(pivot_cell_bycell.loc[folder,'area'])
+    df_corrcoef.loc[:,'effective-length'] = np.sqrt(pivot_cell_bycell.loc[folder,'area']/np.pi)
     df_corrcoef.loc[:,'cell-area'] = pivot_cell_bycell.loc[folder,'area']
     df_corrcoef.loc[:,'cell-volume'] = pivot_cell_bycell.loc[folder,'effective-volume']
     properties = []
     for orga in organelles:
         for prop in ['mean','count','total','total-fraction']:
-            if (orga in ["vacuole","ER"]) and (prop=="count"):
+            if (orga=="ER") and (prop=="count"):
                 continue
             prop_new = f"{prop}-{orga}"
             properties.append(prop_new)
             df_corrcoef.loc[:,prop_new] = pv_bycell.loc[pv_bycell["organelle"]==orga,prop]
     df_corrcoef.reset_index(inplace=True)
-    # np_corrcoef = df_corrcoef.loc[:,['condition','effective-length','cell-area','cell-volume',*properties]].to_numpy()
-    # corrcoef = np.corrcoef(np_corrcoef,rowvar=False)
-    # fig = px.imshow(
-    #         corrcoef,
-    #         x=['condition','effective-length','cell-area','cell-volume',*properties],
-    #         y=['condition','effective-length','cell-area','cell-volume',*properties]
-    #     )
-    # fig.write_html(f"{folder_o}corrcoef_{folder}.html")
+    np_corrcoef = df_corrcoef.loc[:,['condition','effective-length','cell-area','cell-volume',*properties]].to_numpy()
+    corrcoef = np.corrcoef(np_corrcoef,rowvar=False)
+    fig = px.imshow(
+            corrcoef,
+            x=['condition','effective-length','cell-area','cell-volume',*properties],
+            y=['condition','effective-length','cell-area','cell-volume',*properties],
+            color_continuous_scale = "RdBu_r",range_color=[-1,1]
+        )
+    fig.write_html(f"{folder_o}/corrcoef_{folder}.html")
 
     for condi in df_corrcoef["condition"].unique():
         np_corrcoef = df_corrcoef.loc[df_corrcoef['condition']==condi,['effective-length','cell-area','cell-volume',*properties]].to_numpy()
@@ -160,9 +160,10 @@ for folder in subfolders:
         fig = px.imshow(
                 corrcoef,
                 x=['effective-length','cell-area','cell-volume',*properties],
-                y=['effective-length','cell-area','cell-volume',*properties]
+                y=['effective-length','cell-area','cell-volume',*properties],
+                color_continuous_scale="RdBu_r",range_color=[-1,1]
             )
-        fig.write_html(f"{folder_o}corrcoef_{folder}_{str(condi).replace('.','-')}.html")    
+        fig.write_html(f"{folder_o}/corrcoef_{folder}_{str(condi).replace('.','-')}.html")    
 
 
 # EXPERIMENT CONDITION LEVEL
@@ -201,6 +202,7 @@ def plot_histo_violin(df,prop_y,prop_x="cell_area",savepath="histo-violin.html")
     fig.show()
     fig.write_html(str(savepath))
     return None
+
 def plot_histo_box(df,prop_y,prop_x="cell_area",savepath=""):
     fig = make_subplots(rows=1,cols=1)
     for prop in df[prop_y].unique():
@@ -336,7 +338,6 @@ for folder in subfolders:
     pca_components = [comp if comp[0]>0 else -comp for comp in pca.components_ ]
     df_components = pd.DataFrame(pca_components,columns=[*organelles])
 
-
     base0 = pca_components[0]
     base1 = pca_components[1]
     base2 = pca_components[2]
@@ -360,28 +361,24 @@ for folder in subfolders:
         )
     figproj.write_html(f"{folder_o}/pca_nocond_projection3d_{folder}.html")
 
-    # fig01 = px.scatter(df_pca_washed,x="proj0",y="proj1",color="condition")
-    # fig02 = px.scatter(df_pca_washed,x="proj0",y="proj2",color="condition")
-    # fig12 = px.scatter(df_pca_washed,x="proj1",y="proj2",color="condition")
-
-    # fig01.write_html(f"{folder_o}/pca_nocond_projection_{folder}_proj01.html")
-    # fig02.write_html(f"{folder_o}/pca_nocond_projection_{folder}_proj02.html")
-    # fig12.write_html(f"{folder_o}/pca_nocond_projection_{folder}_proj12.html")
-
-    # fig_components = px.imshow(pca_components)
-    # fig_components.write_html(f"{folder_o}/pca_nocond_components_{folder}.html")
+    fig_components = px.imshow(
+        pca_components,
+        x=organelles, y=[f"PC{i}" for i in range(6)],
+        color_continuous_scale="RdBu_r", color_continuous_midpoint=0
+    )
+    fig_components.write_html(f"{folder_o}/pca_nocond_components_{folder}.html")
 df_explained_variance_ratio = pd.DataFrame(dict_explained_variance_ratio)
-df_explained_variance_ratio.to_csv(f"{folder_o}/explained_variance_ratio.csv",index=False)
+df_explained_variance_ratio.to_csv(f"{folder_o}/explained_variance_ratio_volume_fraction.csv",index=False)
 
-# PCA of volume fraction normalized rank, without conditions. NOT WORKING!
+
+# PCA of total volume, without conditions
 dict_explained_variance_ratio = {}
 for folder in subfolders:
     df_orga_perfolder = df_bycell[df_bycell["folder"].eq(folder)].set_index(["condition","field","idx-cell"])
     idx = df_orga_perfolder.groupby(["condition","field","idx-cell"]).count().index
     df_pca = pd.DataFrame(index=idx,columns=organelles)
     for orga in organelles:
-        df_pca_orga_raw = df_orga_perfolder.loc[df_orga_perfolder["organelle"].eq(orga),"total-fraction"]
-        df_pca[orga] = df_pca_orga_raw.rank()/len(df_pca_orga_raw)
+        df_pca[orga] = df_orga_perfolder.loc[df_orga_perfolder["organelle"].eq(orga),"total"]
     df_pca.reset_index(inplace=True)
     # Different from above! No normalization of condition.
     df_orga_perfolder.reset_index(inplace=True)
@@ -419,23 +416,76 @@ for folder in subfolders:
                 marker=dict(size=2,color=figcolors[j],opacity=0.8)
             )
         )
-    figproj.write_html(f"{folder_o}/pca_rank_projection3d_{folder}.html")
+    figproj.write_html(f"{folder_o}/pca_projection3d_total_volume_{folder}.html")
 
-    fig01 = px.scatter(df_pca_washed,x="proj0",y="proj1",color="condition")
-    fig02 = px.scatter(df_pca_washed,x="proj0",y="proj2",color="condition")
-    fig12 = px.scatter(df_pca_washed,x="proj1",y="proj2",color="condition")
-
-    fig01.write_html(f"{folder_o}/pca_rank_projection_{folder}_proj01.html")
-    fig02.write_html(f"{folder_o}/pca_rank_projection_{folder}_proj02.html")
-    fig12.write_html(f"{folder_o}/pca_rank_projection_{folder}_proj12.html")
-
-    fig_components = px.imshow(pca_components,x=organelles,y=[f"PC{i}" for i in range(6)])
-    fig_components.write_html(f"{folder_o}/pca_rank_components_{folder}.html")
+    fig_components = px.imshow(
+        pca_components,
+        x=organelles, y=[f"PC{i}" for i in range(6)],
+        color_continuous_scale="RdBu_r", color_continuous_midpoint=0
+    )
+    fig_components.write_html(f"{folder_o}/pca_components_total_volume_{folder}.html")
 df_explained_variance_ratio = pd.DataFrame(dict_explained_variance_ratio)
-df_explained_variance_ratio.to_csv(f"{folder_o}/explained_variance_ratio_rank.csv",index=False)
+df_explained_variance_ratio.to_csv(f"{folder_o}/explained_variance_ratio_total_volume.csv",index=False)
 
 
-# PCA of volume fraction normalized with, without conditions.
+# PCA of count number, without conditions
+dict_explained_variance_ratio = {}
+for folder in subfolders:
+    df_orga_perfolder = df_bycell[df_bycell["folder"].eq(folder)].set_index(["condition","field","idx-cell"])
+    idx = df_orga_perfolder.groupby(["condition","field","idx-cell"]).count().index
+    df_pca = pd.DataFrame(index=idx,columns=organelles)
+    for orga in organelles:
+        df_pca[orga] = df_orga_perfolder.loc[df_orga_perfolder["organelle"].eq(orga),"count"]
+    df_pca.reset_index(inplace=True)
+    # Different from above! No normalization of condition.
+    df_orga_perfolder.reset_index(inplace=True)
+    df_pca["na_count"] = df_pca.isna().sum(axis=1)    
+
+    df_pca_washed = df_pca.fillna(0.)    
+    print(folder,np.bincount(df_pca["na_count"]))
+
+    np_pca = df_pca_washed[organelles].to_numpy()
+    pca = PCA(n_components=6)
+    pca.fit(np_pca)
+
+    dict_explained_variance_ratio[folder] = pca.explained_variance_ratio_
+    pca_components = [comp if comp[0]>0 else -comp for comp in pca.components_ ]
+    df_components = pd.DataFrame(pca_components,columns=[*organelles])
+
+    base0 = pca_components[0]
+    base1 = pca_components[1]
+    base2 = pca_components[2]
+
+    df_pca_washed["proj0"] = df_pca_washed.apply(lambda x:np.dot(base0,x.loc[organelles]),axis=1)
+    df_pca_washed["proj1"] = df_pca_washed.apply(lambda x:np.dot(base1,x.loc[organelles]),axis=1)
+    df_pca_washed["proj2"] = df_pca_washed.apply(lambda x:np.dot(base2,x.loc[organelles]),axis=1)
+
+    figproj = go.Figure()
+    figcolors = ["purple","blue","green","yellow","orange","red"]
+    for j,condi in enumerate(pd.unique(df_pca_washed["condition"])):
+        figproj.add_trace(
+            go.Scatter3d(
+                x=df_pca_washed.loc[df_pca_washed["condition"].eq(condi),"proj0"],
+                y=df_pca_washed.loc[df_pca_washed["condition"].eq(condi),"proj1"],
+                z=df_pca_washed.loc[df_pca_washed["condition"].eq(condi),"proj2"],
+                name=condi,
+                mode="markers",
+                marker=dict(size=2,color=figcolors[j],opacity=0.8)
+            )
+        )
+    figproj.write_html(f"{folder_o}/pca_projection3d_count_{folder}.html")
+
+    fig_components = px.imshow(
+        pca_components,
+        x=organelles, y=[f"PC{i}" for i in range(6)],
+        color_continuous_scale="RdBu_r", color_continuous_midpoint=0
+    )
+    fig_components.write_html(f"{folder_o}/pca_components_count_{folder}.html")
+df_explained_variance_ratio = pd.DataFrame(dict_explained_variance_ratio)
+df_explained_variance_ratio.to_csv(f"{folder_o}/explained_variance_ratio_count.csv",index=False)
+
+
+# PCA of volume fraction normalized with mean and std, without conditions.
 dict_explained_variance_ratio = {}
 for folder in subfolders:
     df_orga_perfolder = df_bycell[df_bycell["folder"].eq(folder)].set_index(["condition","field","idx-cell"])
