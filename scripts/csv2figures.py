@@ -30,7 +30,7 @@ subfolders = [
 
 folder_i = Path("./data/results")
 folder_o = Path("./data/figures")
-# folder_o = Path("./data/figures/pca")
+folder_pca = Path("./data/figures/pca")
 
 
 # READ FILES
@@ -322,23 +322,30 @@ def make_pca_plots(property,has_volume=False,is_normalized=False):
                     
         #         )
         #     )
+        pc2proj = []
+        for k,proj in enumerate(pca_components):
+            if len(pc2proj)>2:
+                break
+            if not ((num_pc==6 and np.argmax(np.abs(proj))==1) or (num_pc==7 and np.argmax(np.abs(proj))==2)):
+                pc2proj.append(k)
         figproj = px.scatter_3d(
             data_frame=df_pca_washed,
-            x="proj0",y="proj2",z="proj3",
-            color="condition", hover_data=["field","idx-cell"]
+            x=f"proj{pc2proj[0]}",y=f"proj{pc2proj[1]}",z=f"proj{pc2proj[2]}",size_max=2,
+            color="condition", hover_data=["field","idx-cell"],
+            color_discrete_map=["purple","blue","green","yellow","orange","red"]
         )
-        figproj.write_html(f"{folder_o}/pca_projection3d023_{name}_{folder}.html")
+        figproj.write_html(f"{folder_pca}/pca_projection3d_pc{''.join([str(p) for p in pc2proj])}_{name}_{folder}.html")
 
         fig_components = px.imshow(
             pca_components,
             x=columns, y=[f"PC{i}" for i in range(num_pc)],
             color_continuous_scale="RdBu_r", color_continuous_midpoint=0
         )
-        fig_components.write_html(f"{folder_o}/pca_components_{name}_{folder}.html")
+        fig_components.write_html(f"{folder_pca}/pca_components_{name}_{folder}.html")
 
 
     df_explained_variance_ratio = pd.DataFrame(dict_explained_variance_ratio)
-    df_explained_variance_ratio.to_csv(f"{folder_o}/explained_variance_ratio_{name}.csv",index=False)
+    df_explained_variance_ratio.to_csv(f"{folder_pca}/explained_variance_ratio_{name}.csv",index=False)
 
     return None
 
