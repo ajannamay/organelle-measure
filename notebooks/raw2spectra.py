@@ -10,7 +10,7 @@ import plotly.graph_objects as go
 import xmltodict
 from pathlib import Path
 from copy import deepcopy
-from skimage import io
+from skimage import io,util
 from organelle_measure.tools import load_nd2_plane,get_nd2_size
 
 def read_spectra_xml(filepath):
@@ -109,8 +109,26 @@ df_meta = pd.concat([pd.DataFrame(meta,index=[m]) for m,meta in enumerate(list_m
 df_meta.to_csv("notebooks/meta.csv",index=False)
 # The output has been modified to exclude those not suitable for spectrum plot.
 
+# Deal with blue channels of leucine large experiment.
+for fileblue in (folder_l/"leucine-large-blue-gaussian").glob("binary-spectral-blue*.tiff"):
+    img_old = io.imread(str(fileblue))
+    # print(type(img_old),img_old.shape)
+    
+    img_pex = np.zeros_like(img_old,dtype=int)
+    img_pex[img_old==3] = 255
+    name_pex = folder_l/"EYrainbow_leucine_large"/f"{fileblue.stem.replace('spectral-blue','peroxisome')}.tiff"
+    io.imsave(str(name_pex),util.img_as_ubyte(img_pex))
+
+    img_vph = np.zeros_like(img_old,dtype=int)
+    img_vph[img_old==2] = 255
+    name_vph = folder_l/"EYrainbow_leucine_large"/f"{fileblue.stem.replace('spectral-blue','vacuole')}.tiff"
+    io.imsave(str(name_vph),util.img_as_ubyte(img_vph))
+
+    print(f"Finished: {fileblue.stem}")
+# End
+
 dict_files = {
-    "blue": folder_o/"EYrainbow_blue_glu-200_field-1_largerBF.xml",
+    "blue": folder_o/"EYrainbow_blue_rpmc-0_field-5.xml",
     "red":  folder_o/"EYrainbow_Red_glu-200_field-4.xml"
 }
 dict_organelles = {
@@ -160,8 +178,30 @@ for folder,stem in zip(df_meta['folder'],df_meta['file']):
             "field_of_view": stem
         })        
     )
+    list_df.append(
+        pd.DataFrame({
+            "organelle":     (orga:=dict_organelles[color][1]),
+            "wavelength":    df_benchmark.loc[df_benchmark['organelle'].eq(orga),'wavelength'].to_list()[:len(mean1)],
+            "intensity":     mean2,
+            "experiment":    folder,
+            "field_of_view": stem
+        })        
+    )
 df_img = pd.concat(list_df)
+df_img.to_csv("notebooks/spectra_images.csv",index=False)
 
+df_exp = df_img.groupby(['experiment','organelle','wavelength']).mean()
+df_exp.reset_index(inplace=True)
 
+df_max = df_exp.groupby(['experiment','organelle']).max()
+df_max.reset_index(inplace=True)
 
-    
+df_exp.set_index(['experiment','organelle'],inplace=True)
+df_max.set_index(['experiment','organelle'],inplace=True)
+
+df_exp['norm'] = df_exp.loc[:,'intensity']/df_max.loc[:,'intensity']
+
+fig = go.Figure()
+fig.add_trace(
+
+)
