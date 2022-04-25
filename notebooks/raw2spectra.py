@@ -129,7 +129,7 @@ for fileblue in (folder_l/"leucine-large-blue-gaussian").glob("binary-spectral-b
 
 dict_files = {
     "blue": folder_o/"EYrainbow_blue_rpmc-0_field-5.xml",
-    "red":  folder_o/"EYrainbow_Red_glu-200_field-4.xml"
+    "red":  folder_o/"EYrainbow_red_glu-200_field-2_try1_largerBF.xml"
 }
 dict_organelles = {
     "blue":["peroxisome","vacuole"],
@@ -150,6 +150,10 @@ for color in ["blue","red"]:
             })
         )
 df_benchmark = pd.concat(list_benchmark)
+df_benchmark_max = df_benchmark.groupby("organelle").max()
+df_benchmark.set_index(["organelle",'wavelength'],inplace=True)
+df_benchmark["norm"] = df_benchmark.loc[:,"intensity"]/df_benchmark_max.loc[:,'intensity']
+df_benchmark.reset_index(inplace=True)
 
 df_meta = pd.read_csv("notebooks/meta.csv")
 list_df = []
@@ -188,8 +192,9 @@ for folder,stem in zip(df_meta['folder'],df_meta['file']):
         })        
     )
 df_img = pd.concat(list_df)
-df_img.to_csv("notebooks/spectra_images.csv",index=False)
+df_img.to_csv("data/spectra/spectra_images.csv",index=False)
 
+df_img = pd.read_csv("data/spectra/spectra_images.csv")
 df_exp = df_img.groupby(['experiment','organelle','wavelength']).mean()
 df_exp.reset_index(inplace=True)
 
@@ -200,8 +205,48 @@ df_exp.set_index(['experiment','organelle'],inplace=True)
 df_max.set_index(['experiment','organelle'],inplace=True)
 
 df_exp['norm'] = df_exp.loc[:,'intensity']/df_max.loc[:,'intensity']
+df_exp.reset_index(inplace=True)
 
-fig = go.Figure()
-fig.add_trace(
-
-)
+# color = 'blue'
+for color in ['blue','red']:
+    fig = go.Figure()
+    for experiment in df_exp['experiment'].unique():
+        if experiment == "EYrainbow_leucine_large":
+            continue
+        fig.add_trace(
+            go.Scatter(
+                x = df_exp.loc[(df_exp["experiment"].eq(experiment) & df_exp["organelle"].eq(dict_organelles[color][0])),'wavelength'],
+                y = df_exp.loc[(df_exp["experiment"].eq(experiment) & df_exp["organelle"].eq(dict_organelles[color][0])),'norm'],
+                name = f"{dict_organelles[color][0]}: {experiment}",
+                mode="lines+markers",
+                line=dict(dash="solid",shape="spline",color='grey')
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x = df_exp.loc[(df_exp["experiment"].eq(experiment) & df_exp["organelle"].eq(dict_organelles[color][1])),'wavelength'],
+                y = df_exp.loc[(df_exp["experiment"].eq(experiment) & df_exp["organelle"].eq(dict_organelles[color][1])),'norm'],
+                name = f"{dict_organelles[color][1]}: {experiment}",
+                mode="lines+markers",
+                line=dict(dash="dash",shape="spline",color='grey')
+            )
+        )
+    fig.add_trace(
+        go.Scatter(
+            x = df_benchmark.loc[(df_benchmark["organelle"].eq(dict_organelles[color][0])),'wavelength'],
+            y = df_benchmark.loc[(df_benchmark["organelle"].eq(dict_organelles[color][0])),'norm'],
+            name = dict_organelles[color][0],
+            mode="lines+markers",
+            line=dict(dash="solid",shape="spline",color='blue')
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x = df_benchmark.loc[(df_benchmark["organelle"].eq(dict_organelles[color][1])),'wavelength'],
+            y = df_benchmark.loc[(df_benchmark["organelle"].eq(dict_organelles[color][1])),'norm'],
+            name = dict_organelles[color][1],
+            mode="lines+markers",
+            line=dict(dash="solid",shape="spline",color='red')
+        )
+    )
+    fig.write_html(f"{folder_o}/unmix_comparison_{color}.html")

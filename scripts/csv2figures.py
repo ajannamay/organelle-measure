@@ -308,31 +308,34 @@ def make_pca_plots(property,has_volume=False,is_normalized=False):
         for i_pc in range(len(pca_components)):
             base = pca_components[i_pc]
             df_pca_washed[f"proj{i_pc}"] = df_pca_washed.apply(lambda x:np.dot(base,x.loc[columns]),axis=1)
-        # figproj = go.Figure()
-        # figcolors = ["purple","blue","green","yellow","orange","red"]
-        # for j,condi in enumerate(pd.unique(df_pca_washed["condition"])):
-        #     figproj.add_trace(
-        #         go.Scatter3d(
-        #             x=df_pca_washed.loc[df_pca_washed["condition"].eq(condi),"proj0"],
-        #             y=df_pca_washed.loc[df_pca_washed["condition"].eq(condi),"proj2"],
-        #             z=df_pca_washed.loc[df_pca_washed["condition"].eq(condi),"proj3"],
-        #             name=condi,
-        #             mode="markers",
-        #             marker=dict(size=2,color=figcolors[j],opacity=0.8)
-                    
-        #         )
-        #     )
+
         pc2proj = []
         for k,proj in enumerate(pca_components):
             if len(pc2proj)>2:
                 break
             if not ((num_pc==6 and np.argmax(np.abs(proj))==1) or (num_pc==7 and np.argmax(np.abs(proj))==2)):
                 pc2proj.append(k)
-        figproj = px.scatter_3d(
-            data_frame=df_pca_washed,
-            x=f"proj{pc2proj[0]}",y=f"proj{pc2proj[1]}",z=f"proj{pc2proj[2]}",size_max=2,
-            color="condition", hover_data=["field","idx-cell"],
-            color_discrete_map=["purple","blue","green","yellow","orange","red"]
+        
+        figproj = go.Figure()
+        figcolors = ["purple","blue","green","yellow","orange","red"]
+        for j,condi in enumerate(pd.unique(df_pca_washed["condition"])):
+            figproj.add_trace(
+                go.Scatter3d(
+                    x=df_pca_washed.loc[df_pca_washed["condition"].eq(condi),f"proj{pc2proj[0]}"],
+                    y=df_pca_washed.loc[df_pca_washed["condition"].eq(condi),f"proj{pc2proj[1]}"],
+                    z=df_pca_washed.loc[df_pca_washed["condition"].eq(condi),f"proj{pc2proj[2]}"],
+                    name=condi,
+                    mode="markers",
+                    marker=dict(size=2,color=figcolors[j],opacity=0.8)
+                    
+                )
+            )
+        figproj.update_layout(
+            scene=dict(
+                xaxis_title=f"proj{pc2proj[0]}",
+                yaxis_title=f"proj{pc2proj[1]}",
+                zaxis_title=f"proj{pc2proj[2]}"
+            )
         )
         figproj.write_html(f"{folder_pca}/pca_projection3d_pc{''.join([str(p) for p in pc2proj])}_{name}_{folder}.html")
 
