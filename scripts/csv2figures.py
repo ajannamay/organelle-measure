@@ -30,7 +30,7 @@ subfolders = [
 
 folder_i = Path("./data/results")
 folder_o = Path("./data/figures")
-folder_pca = Path("./data/figures/pca")
+folder_pca = Path("./data/figures/pca_transparent_bkgd")
 
 
 # READ FILES
@@ -117,7 +117,8 @@ pivot_bycell = pd.DataFrame(index=index_bycell)
 pivot_bycell.loc[pivot_orga_bycell_mean.index,"mean"] = pivot_orga_bycell_mean
 pivot_bycell.loc[pivot_orga_bycell_mean.index,"count"] = pivot_orga_bycell_nums
 pivot_bycell.loc[pivot_orga_bycell_mean.index,"total"] = pivot_orga_bycell_totl
-pivot_bycell.fillna(0.,inplace=True)
+# pivot_bycell.fillna(0.,inplace=True)
+
 # include cell data
 pivot_bycell.reset_index("organelle",inplace=True) # comment out after 1st run 
 pivot_bycell.loc[:,"cell-area"] = pivot_cell_bycell.loc[:,"area"]
@@ -125,7 +126,9 @@ pivot_bycell.loc[:,"cell-volume"] = pivot_cell_bycell.loc[:,"effective-volume"]
 pivot_bycell.loc[:,"total-fraction"] = pivot_bycell.loc[:,"total"]/pivot_bycell.loc[:,"cell-volume"]
 # clean up
 df_bycell = pivot_bycell.reset_index()
-df_bycell.loc[(df_bycell["organelle"].eq("vacuole") & df_bycell["total"].eq(0.)),"count"] = 0
+df_bycell.loc[(df_bycell["organelle"].eq("vacuole") & df_bycell["total"].eq(0.)),"count"] = np.nan
+df_bycell.loc[(df_bycell["organelle"].eq("vacuole") & df_bycell["total"].eq(0.)),"mean"] = np.nan
+df_bycell.loc[(df_bycell["organelle"].eq("vacuole") & df_bycell["total"].eq(0.)),"total"] = np.nan
 pivot_bycell = df_bycell.set_index(index_bycell)
 
 
@@ -166,6 +169,15 @@ for folder in subfolders:
             )
         fig.write_html(f"{folder_o}/corrcoef_{folder}_{str(condi).replace('.','-')}.html")    
 
+# One layer deeper than correlation coefficient
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+fig = sns.PairGrid(df_corrcoef,hue="condition",vars=properties)
+fig.map_diag(sns.histplot)
+# fig.map_offdiag(sns.scatterplot)
+fig.map_upper(sns.scatterplot)
+fig.map_lower(sns.kdeplot)
 
 # EXPERIMENT CONDITION LEVEL
 
@@ -332,9 +344,24 @@ def make_pca_plots(property,has_volume=False,is_normalized=False):
             )
         figproj.update_layout(
             scene=dict(
-                xaxis_title=f"proj{pc2proj[0]}",
-                yaxis_title=f"proj{pc2proj[1]}",
-                zaxis_title=f"proj{pc2proj[2]}"
+                xaxis=dict(
+                    title=f"proj{pc2proj[0]}",
+                    backgroundcolor='rgba(0,0,0,0)',
+                    gridcolor='grey',
+                    zerolinecolor='black'
+                ),
+                yaxis=dict(
+                    title=f"proj{pc2proj[1]}",
+                    backgroundcolor='rgba(0,0,0,0)',
+                    gridcolor='grey',
+                    zerolinecolor='black'
+                ),
+                zaxis=dict(
+                    title=f"proj{pc2proj[2]}",
+                    backgroundcolor='rgba(0,0,0,0)',
+                    gridcolor='grey',
+                    zerolinecolor='black'
+                )
             )
         )
         figproj.write_html(f"{folder_pca}/pca_projection3d_pc{''.join([str(p) for p in pc2proj])}_{name}_{folder}.html")
