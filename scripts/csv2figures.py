@@ -364,14 +364,14 @@ def make_pca_plots(property,has_volume=False,is_normalized=False):
                 )
             )
         )
-        figproj.write_html(f"{folder_pca}/pca_projection3d_pc{''.join([str(p) for p in pc2proj])}_{name}_{folder}.html")
+        figproj.write_html(f"{folder_pca}/pca_projection3d_{folder}_{name}_pc{''.join([str(p) for p in pc2proj])}.html")
 
         fig_components = px.imshow(
             pca_components,
             x=columns, y=[f"PC{i}" for i in range(num_pc)],
             color_continuous_scale="RdBu_r", color_continuous_midpoint=0
         )
-        fig_components.write_html(f"{folder_pca}/pca_components_{name}_{folder}.html")
+        fig_components.write_html(f"{folder_pca}/pca_components_{folder}_{name}.html")
 
 
     df_explained_variance_ratio = pd.DataFrame(dict_explained_variance_ratio)
