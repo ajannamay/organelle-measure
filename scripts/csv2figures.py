@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
@@ -29,7 +30,7 @@ subfolders = [
 ]
 
 folder_i = Path("./data/results")
-folder_o = Path("./data/figures")
+folder_o = Path("./data/figures/pairwise")
 folder_pca = Path("./data/figures/pca_transparent_bkgd")
 
 
@@ -142,42 +143,46 @@ for folder in subfolders:
     properties = []
     for orga in organelles:
         for prop in ['mean','count','total','total-fraction']:
-            if (orga=="ER") and (prop=="count"):
+            if (orga=="ER") and (prop in ["count","mean"]):
+                continue
+            if (orga=="vacuole") and (prop in ["count","mean"]):
                 continue
             prop_new = f"{prop}-{orga}"
             properties.append(prop_new)
             df_corrcoef.loc[:,prop_new] = pv_bycell.loc[pv_bycell["organelle"]==orga,prop]
     df_corrcoef.reset_index(inplace=True)
-    np_corrcoef = df_corrcoef.loc[:,['condition','effective-length','cell-area','cell-volume',*properties]].to_numpy()
-    corrcoef = np.corrcoef(np_corrcoef,rowvar=False)
-    fig = px.imshow(
-            corrcoef,
-            x=['condition','effective-length','cell-area','cell-volume',*properties],
-            y=['condition','effective-length','cell-area','cell-volume',*properties],
-            color_continuous_scale = "RdBu_r",range_color=[-1,1]
-        )
-    fig.write_html(f"{folder_o}/corrcoef_{folder}.html")
 
-    for condi in df_corrcoef["condition"].unique():
-        np_corrcoef = df_corrcoef.loc[df_corrcoef['condition']==condi,['effective-length','cell-area','cell-volume',*properties]].to_numpy()
-        corrcoef = np.corrcoef(np_corrcoef,rowvar=False)
-        fig = px.imshow(
-                corrcoef,
-                x=['effective-length','cell-area','cell-volume',*properties],
-                y=['effective-length','cell-area','cell-volume',*properties],
-                color_continuous_scale="RdBu_r",range_color=[-1,1]
-            )
-        fig.write_html(f"{folder_o}/corrcoef_{folder}_{str(condi).replace('.','-')}.html")    
+    fig_pair = sns.PairGrid(df_corrcoef,hue="condition",vars=['condition','effective-length','cell-area','cell-volume',*properties],height=3.0)
+    fig_pair.map_diag(sns.histplot)
+    # f_pairig.map_offdiag(sns.scatterplot)
+    fig_pair.map_upper(sns.scatterplot)
+    fig_pair.map_lower(sns.kdeplot)
+    fig_pair.add_legend()
+    fig_pair.savefig(f"{folder_o}/pairplot_{folder}.png")
+
+    # np_corrcoef = df_corrcoef.loc[:,['condition','effective-length','cell-area','cell-volume',*properties]].to_numpy()
+    # corrcoef = np.corrcoef(np_corrcoef,rowvar=False)
+    # fig = px.imshow(
+    #         corrcoef,
+    #         x=['condition','effective-length','cell-area','cell-volume',*properties],
+    #         y=['condition','effective-length','cell-area','cell-volume',*properties],
+    #         color_continuous_scale = "RdBu_r",range_color=[-1,1]
+    #     )
+    # fig.write_html(f"{folder_o}/corrcoef_{folder}.html")
+
+    # for condi in df_corrcoef["condition"].unique():
+    #     np_corrcoef = df_corrcoef.loc[df_corrcoef['condition']==condi,['effective-length','cell-area','cell-volume',*properties]].to_numpy()
+    #     corrcoef = np.corrcoef(np_corrcoef,rowvar=False)
+    #     fig = px.imshow(
+    #             corrcoef,
+    #             x=['effective-length','cell-area','cell-volume',*properties],
+    #             y=['effective-length','cell-area','cell-volume',*properties],
+    #             color_continuous_scale="RdBu_r",range_color=[-1,1]
+    #         )
+    #     fig.write_html(f"{folder_o}/corrcoef_{folder}_{str(condi).replace('.','-')}.html")    
 
 # One layer deeper than correlation coefficient
-import seaborn as sns
-import matplotlib.pyplot as plt
 
-fig = sns.PairGrid(df_corrcoef,hue="condition",vars=properties)
-fig.map_diag(sns.histplot)
-# fig.map_offdiag(sns.scatterplot)
-fig.map_upper(sns.scatterplot)
-fig.map_lower(sns.kdeplot)
 
 # EXPERIMENT CONDITION LEVEL
 
@@ -348,18 +353,24 @@ def make_pca_plots(property,has_volume=False,is_normalized=False):
                     title=f"proj{pc2proj[0]}",
                     backgroundcolor='rgba(0,0,0,0)',
                     gridcolor='grey',
+                    showline = True,
+                    zeroline=True,
                     zerolinecolor='black'
                 ),
                 yaxis=dict(
                     title=f"proj{pc2proj[1]}",
                     backgroundcolor='rgba(0,0,0,0)',
                     gridcolor='grey',
+                    showline = True,
+                    zeroline=True,
                     zerolinecolor='black'
                 ),
                 zaxis=dict(
                     title=f"proj{pc2proj[2]}",
                     backgroundcolor='rgba(0,0,0,0)',
                     gridcolor='grey',
+                    showline = True,
+                    zeroline=True,
                     zerolinecolor='black'
                 )
             )
