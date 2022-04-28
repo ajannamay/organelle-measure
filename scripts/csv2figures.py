@@ -152,7 +152,7 @@ for folder in subfolders:
             df_corrcoef.loc[:,prop_new] = pv_bycell.loc[pv_bycell["organelle"]==orga,prop]
     df_corrcoef.reset_index(inplace=True)
 
-    fig_pair = sns.PairGrid(df_corrcoef,hue="condition",vars=['condition','effective-length','cell-area','cell-volume',*properties],height=3.0)
+    fig_pair = sns.PairGrid(df_corrcoef,hue="condition",vars=['effective-length','cell-area','cell-volume',*properties],height=3.0)
     fig_pair.map_diag(sns.histplot)
     # f_pairig.map_offdiag(sns.scatterplot)
     fig_pair.map_upper(sns.scatterplot)
