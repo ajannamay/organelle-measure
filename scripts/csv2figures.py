@@ -152,14 +152,26 @@ for folder in subfolders:
             df_corrcoef.loc[:,prop_new] = pv_bycell.loc[pv_bycell["organelle"]==orga,prop]
     df_corrcoef.reset_index(inplace=True)
 
-    fig_pair = sns.PairGrid(df_corrcoef,hue="condition",vars=['effective-length','cell-area','cell-volume',*properties],height=3.0)
-    fig_pair.map_diag(sns.histplot)
-    # f_pairig.map_offdiag(sns.scatterplot)
-    fig_pair.map_upper(sns.scatterplot)
-    fig_pair.map_lower(sns.kdeplot)
-    fig_pair.add_legend()
-    fig_pair.savefig(f"{folder_o}/pairplot_{folder}.png")
+    # # Pairwise relation atlas
+    # fig_pair = sns.PairGrid(df_corrcoef,hue="condition",vars=['effective-length','cell-area','cell-volume',*properties],height=3.0)
+    # fig_pair.map_diag(sns.histplot)
+    # # f_pairig.map_offdiag(sns.scatterplot)
+    # fig_pair.map_upper(sns.scatterplot)
+    # fig_pair.map_lower(sns.kdeplot)
+    # fig_pair.add_legend()
+    # fig_pair.savefig(f"{folder_o}/pairplot_{folder}.png")
 
+    # Pairwise relation individual
+    sns.set_palette(sns.blend_palette(['red','blue']))
+    g = sns.jointplot(
+                      data=df_corrcoef, 
+                      x="cell-volume", y="total-fraction-mitochondria",
+                      hue="condition", kind="kde"
+        )
+    # g.plot_joint(sns.kdeplot, zorder=0, levels=6)
+    g.plot_marginals(sns.rugplot, height=-.15, clip_on=False)
+
+    # # Correlation coefficient
     # np_corrcoef = df_corrcoef.loc[:,['condition','effective-length','cell-area','cell-volume',*properties]].to_numpy()
     # corrcoef = np.corrcoef(np_corrcoef,rowvar=False)
     # fig = px.imshow(
