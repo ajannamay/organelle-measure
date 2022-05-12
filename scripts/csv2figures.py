@@ -30,8 +30,9 @@ subfolders = [
 ]
 
 folder_i = Path("./data/results")
-folder_o = Path("./data/figures/pairwise")
-folder_pca = Path("./data/figures/pca_transparent_bkgd")
+folder_o = Path("./data/figures")
+folder_rate = Path("./data/growthrate")
+# folder_pca = Path("./data/figures/pca_transparent_bkgd")
 
 
 # READ FILES
@@ -110,7 +111,7 @@ pivot_orga_bycell_nums = df_orga_all.loc[:,["folder","condition","field","organe
 pivot_orga_bycell_totl = df_orga_all.loc[:,["folder","condition","field","organelle","idx-cell","volume-micron"]].groupby(["folder","condition","field","idx-cell","organelle"]).sum()["volume-micron"]
 # index
 index_bycell = pd.MultiIndex.from_tuples(
-    [(*index,orga) for index in pivot_cell_bycell.index.to_list() for orga in organelles],
+    [(*index,orga) for index in pivot_cell_bycell.index.to_list() for orga in [*organelles,'non-organelle']],
     names=['folder','condition','field','idx-cell','organelle']
 )
 pivot_bycell = pd.DataFrame(index=index_bycell)
@@ -132,6 +133,15 @@ df_bycell.loc[(df_bycell["organelle"].eq("vacuole") & df_bycell["total"].eq(0.))
 df_bycell.loc[(df_bycell["organelle"].eq("vacuole") & df_bycell["total"].eq(0.)),"total"] = np.nan
 pivot_bycell = df_bycell.set_index(index_bycell)
 
+# calculate properties of regions that are not organelles
+df_none = df_bycell[df_bycell['organelle'].ne("non-organelle")].groupby(['folder','condition','field','idx-cell'])[['total','cell-volume','total-fraction']].agg({'total':'sum','cell-volume':'first','total-fraction':'sum'})
+
+pivot_bycell.loc[pivot_bycell['organelle'].eq("non-organelle"),"count"] = 1
+pivot_bycell.loc[pivot_bycell['organelle'].eq("non-organelle"),"mean"] = df_none["cell-volume"] - df_none["total"]
+pivot_bycell.loc[pivot_bycell['organelle'].eq("non-organelle"),"total"] = df_none["cell-volume"] - df_none["total"]
+pivot_bycell.loc[pivot_bycell['organelle'].eq("non-organelle"),"total-fraction"] = 1 - df_none["total-fraction"]
+
+df_bycell = pivot_bycell.reset_index(drop=True)
 
 # DATAFRAME FOR CORRELATION COEFFICIENT
 for folder in subfolders:
@@ -201,8 +211,17 @@ for folder in subfolders:
 pivot_bycondition = df_bycell.groupby(['folder','organelle','condition']).mean()[['mean','count','total','cell-area','cell-volume','total-fraction']]
 pivot_bycondition["cell_count"] = df_bycell[['folder','organelle','condition','mean']].groupby(['folder','organelle','condition']).count()
 df_bycondition = pivot_bycondition.reset_index()
-
-
+df_rates = pd.read_csv(str(folder_rate/"growth_rate.csv"))
+df_rates.rename(columns={"experiment":"folder"},inplace=True)
+df_bycondition.set_index(["folder","condition"],inplace=True)
+df_rates.set_index(["folder","condition"],inplace=True)
+df_bycondition.loc[:,"growth_rate"] = df_rates["growth_rate"]
+df_bycondition.reset_index(inplace=True)
+px.line(
+    df_bycondition.loc[df_bycondition['organelle'].eq("ER")],
+    x='growth_rate',y='total-fraction',
+    color="folder"
+)
 # PLOTS
 
 def plot_histo_violin(df,prop_y,prop_x="cell_area",savepath="histo-violin.html"):

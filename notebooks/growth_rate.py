@@ -44,8 +44,8 @@ for subfolder in subfolders:
     rates = []
     for cond in (conditions:= df['condition'].unique()):
         fitter.fit(
-            df.loc[df["condition"].eq(cond),"minute"].to_numpy().reshape(-1,1),
-            df.loc[df["condition"].eq(cond),"normalized"].to_numpy()
+            df.loc[df["condition"].eq(cond),"minute"].to_numpy().reshape(-1,1)/60.0,
+            np.log(df.loc[df["condition"].eq(cond),"normalized"].to_numpy())
         )
         rates.append(fitter.coef_[0])
     list_rates.append({
