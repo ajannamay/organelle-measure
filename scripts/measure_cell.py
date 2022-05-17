@@ -45,9 +45,8 @@ subfolders = [
     "EYrainbowWhi5Up_betaEstrodiol"
 ]
 
-# folder_i = "./data/labelled"
-folder_i = "./data/cell"
-folder_o = "./results/"
+folder_i = "./images/cell"
+folder_o = "./data/results/"
 
 print("Creating folders...")
 for folder in subfolders:

@@ -6,8 +6,11 @@ from skimage import io,util,segmentation
 from organelle_measure.tools import batch_apply
 
 def postprocess_peroxisome(path_in,path_ref,path_out):
-    img_in = io.imread(str(path_in))
-    img_in = (img_in>2)
+    with h5py.File(str(path_in),'r') as f_in:
+        img_in = f_in["exported_data"][:]
+    img_in = np.argmax(img_in,axis=0)
+    img_in = (img_in==1)
+
     with h5py.File(str(path_ref),'r') as f:
         img_ref = f['data'][0]
     
@@ -22,15 +25,15 @@ def postprocess_peroxisome(path_in,path_ref,path_out):
     )
     return None
 
-folder_i = "./data/leucine-large-blue-gaussian"
-folder_o = "./data/labelled/EYrainbow_leucine_large"
+folder_i = "./images/preprocessed/leucine-large-blue-gaussian"
+folder_o = "./images/labelled/EYrainbow_leucine_large"
 
 list_i   = []
 list_ref = []
 list_o   = []
-for path_in in Path(folder_i).glob("binary*.tiff"):
-    path_ref = Path(folder_i)/f"{path_in.stem.partition('-')[2]}.hdf5"
-    path_out = Path(folder_o)/f"label-peroxisome_{path_in.name.partition('_')[2]}"
+for path_in in Path(folder_i).glob("probability*.h5"):
+    path_ref = Path(folder_i)/f"{path_in.stem.partition('_')[2]}.hdf5"
+    path_out = Path(folder_o)/f"label-peroxisome_{path_in.stem.partition('probability_spectral-blue_')[2]}.tiff"
 
     list_i.append(path_in)
     list_ref.append(path_ref)

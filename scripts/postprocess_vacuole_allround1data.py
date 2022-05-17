@@ -1,3 +1,4 @@
+import h5py
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -5,8 +6,10 @@ from skimage import io,util,morphology,measure
 from organelle_measure.tools import skeletonize_zbyz,watershed_zbyz,find_complete_rings,better_vacuole_img,batch_apply
 
 def postprocess_vacuole(path_in,path_cell,path_out):
-    img_orga = io.imread(str(path_in))
-    img_orga = (img_orga>1)
+    with h5py.File(str(path_in),'r') as f_in:
+        img_orga = f_in["exported_data"][:]
+    img_orga = np.argmax(img_orga,axis=0)
+    img_orga = (img_orga>0)
 
     img_cell = io.imread(str(path_cell))
 
@@ -39,9 +42,9 @@ folders = [
     "EYrainbow_leucine_large", # "leucine-large-blue-gaussian"
     "EYrainbow_leucine"
 ]
-folder_i = "./data/preprocessed/"
-folder_c = "./data/cell/"
-folder_o = "./data/labelled/"
+folder_i = "./images/preprocessed/"
+folder_c = "./images/cell/"
+folder_o = "./images/labelled/"
 
 print("Creating folders...")
 for folder in folders:
@@ -57,10 +60,10 @@ list_o = []
 for folder in folders:
     for path_cell in (Path(folder_c)/folder).glob(f"*.tif"):
         if folder=="EYrainbow_leucine_large":
-            path_binary = (Path(folder_i)/"leucine-large-blue-gaussian")/f"binary-spectral-blue_{path_cell.stem.partition('_')[2]}.tiff"
+            path_binary = (Path(folder_i)/"leucine-large-blue-gaussian")/f"probability_spectral-blue_{path_cell.stem.partition('_')[2]}.h5"
         else:
-            path_binary = (Path(folder_i)/folder)/f"binary-vacuole_{path_cell.stem.partition('_')[2]}.tiff"
-        path_output = (Path(folder_o)/folder)/f"label-vacuole_{path_binary.name.partition('_')[2]}"
+            path_binary = (Path(folder_i)/folder)/f"probability_vacuole_{path_cell.stem.partition('_')[2]}.h5"
+        path_output = (Path(folder_o)/folder)/f"label-vacuole_{path_cell.stem.partition('_')[2]}.tiff"
         list_i.append(path_binary)
         list_c.append(path_cell)
         list_o.append(path_output)
@@ -70,6 +73,6 @@ args = pd.DataFrame({
     "path_cell": list_c,
     "path_out":  list_o
 })
-args.to_csv("./vauocle.csv",index=False)
+# args.to_csv("./vauocle.csv",index=False)
 
 batch_apply(postprocess_vacuole,args)

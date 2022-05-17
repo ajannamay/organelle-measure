@@ -61,6 +61,8 @@ def measure1organelle(path_in,path_cell,path_out):
                     vacuole_bbox_area = vacuole["bbox_area"][idxblob]
                     bbox0,bbox3 = z,z
                     bbox1,bbox2,bbox4,bbox5 = [vacuole[f"bbox-{i}"][idxblob] for i in range(4)]
+            if vacuole_area==0:
+                continue
             measured_orga = {
                 'label': [0],
                 'area':  [vacuole_area],
@@ -95,17 +97,17 @@ subfolders = [
 ]
 
 organelles = [
-    # "peroxisome",
-    # "ER",
-    # "golgi",
-    # "mitochondria",
-    # "LD",
+    "peroxisome",
+    "ER",
+    "golgi",
+    "mitochondria",
+    "LD",
     "vacuole"
 ]
 
-folder_i = "./data/labelled"
-folder_c = "./data/cell"
-folder_o = "./results/"
+folder_i = "./images/labelled"
+folder_c = "./images/cell"
+folder_o = "./data/results/"
 
 print("Creating folders...")
 for folder in subfolders:
@@ -139,4 +141,4 @@ args = pd.DataFrame({
     "path_out":  list_o
 })
 
-# batch_apply(measure1organelle,args)
+batch_apply(measure1organelle,args)

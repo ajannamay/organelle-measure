@@ -4,5 +4,5 @@ from pathlib import Path
 
 # for folder in Path("./data/preprocessed").glob("*"):
 #     new = Path("./data/labelled/")/folder.name
-#     new.mkdir()
-
+#     if not new.exists():
+#         new.mkdir()
