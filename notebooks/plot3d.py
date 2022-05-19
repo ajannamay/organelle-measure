@@ -53,25 +53,25 @@ for i in range(3):
     y=np.random.random(10),
     z=np.random.random(10),
     ax.scatter(x,y,z)
+
 ax.set_xlabel("proj 0")
 ax.set_ylabel("proj 1")
 ax.set_zlabel("proj 2")
+
 ax.xaxis.pane.set_edgecolor('black')
 ax.yaxis.pane.set_edgecolor('black')
 ax.zaxis.pane.set_edgecolor('black')
+
 ax.xaxis.pane.fill = False
 ax.yaxis.pane.fill = False
 ax.zaxis.pane.fill = False
+
 ax.xaxis.set_major_locator(plt.MultipleLocator(0.2))
-# ax.xaxis.set_minor_locator(plt.MultipleLocator(0.01))
 ax.yaxis.set_major_locator(plt.MultipleLocator(0.2))
-# ax.yaxis.set_minor_locator(plt.MultipleLocator(0.01))
 ax.zaxis.set_major_locator(plt.MultipleLocator(0.2))
-# ax.zaxis.set_minor_locator(plt.MultipleLocator(0.01))
+
 ax.grid(which='major', axis='x', linewidth=0.75, linestyle=':', color='0.25')
-# ax.grid(which='minor', axis='x', linewidth=0.25, linestyle='-', color='0.75')
 ax.grid(which='major', axis='y', linewidth=0.75, linestyle=':', color='0.25')
-# ax.grid(which='minor', axis='y', linewidth=0.25, linestyle='-', color='0.75')
 ax.grid(which='major', axis='z', linewidth=0.75, linestyle=':', color='0.25')
-# ax.grid(which='minor', axis='z', linewidth=0.25, linestyle='-', color='0.75')
+
 fig.show()

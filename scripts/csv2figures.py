@@ -119,29 +119,24 @@ pivot_bycell = pd.DataFrame(index=index_bycell)
 pivot_bycell.loc[pivot_orga_bycell_mean.index,"mean"] = pivot_orga_bycell_mean
 pivot_bycell.loc[pivot_orga_bycell_mean.index,"count"] = pivot_orga_bycell_nums
 pivot_bycell.loc[pivot_orga_bycell_mean.index,"total"] = pivot_orga_bycell_totl
-# pivot_bycell.fillna(0.,inplace=True)
+pivot_bycell.fillna(0.,inplace=True)
 
 # include cell data
 pivot_bycell.reset_index("organelle",inplace=True) # comment out after 1st run 
 pivot_bycell.loc[:,"cell-area"] = pivot_cell_bycell.loc[:,"area"]
 pivot_bycell.loc[:,"cell-volume"] = pivot_cell_bycell.loc[:,"effective-volume"]
 pivot_bycell.loc[:,"total-fraction"] = pivot_bycell.loc[:,"total"]/pivot_bycell.loc[:,"cell-volume"]
-# clean up
-df_bycell = pivot_bycell.reset_index()
-df_bycell.loc[(df_bycell["organelle"].eq("vacuole") & df_bycell["total"].eq(0.)),"count"] = np.nan
-df_bycell.loc[(df_bycell["organelle"].eq("vacuole") & df_bycell["total"].eq(0.)),"mean"] = np.nan
-df_bycell.loc[(df_bycell["organelle"].eq("vacuole") & df_bycell["total"].eq(0.)),"total"] = np.nan
-pivot_bycell = df_bycell.set_index(index_bycell)
 
 # calculate properties of regions that are not organelles
-df_none = df_bycell[df_bycell['organelle'].ne("non-organelle")].groupby(['folder','condition','field','idx-cell'])[['total','cell-volume','total-fraction']].agg({'total':'sum','cell-volume':'first','total-fraction':'sum'})
+df_bycell = pivot_bycell.reset_index()
 
+df_none = df_bycell[df_bycell['organelle'].ne("non-organelle")].groupby(['folder','condition','field','idx-cell'])[['total','cell-volume','total-fraction']].agg({'total':'sum','cell-volume':'first','total-fraction':'sum'})
 pivot_bycell.loc[pivot_bycell['organelle'].eq("non-organelle"),"count"] = 1
 pivot_bycell.loc[pivot_bycell['organelle'].eq("non-organelle"),"mean"] = df_none["cell-volume"] - df_none["total"]
 pivot_bycell.loc[pivot_bycell['organelle'].eq("non-organelle"),"total"] = df_none["cell-volume"] - df_none["total"]
 pivot_bycell.loc[pivot_bycell['organelle'].eq("non-organelle"),"total-fraction"] = 1 - df_none["total-fraction"]
 
-df_bycell = pivot_bycell.reset_index(drop=True)
+df_bycell = pivot_bycell.reset_index()
 
 # DATAFRAME FOR CORRELATION COEFFICIENT
 for folder in subfolders:
@@ -151,46 +146,25 @@ for folder in subfolders:
     df_corrcoef.loc[:,'cell-area'] = pivot_cell_bycell.loc[folder,'area']
     df_corrcoef.loc[:,'cell-volume'] = pivot_cell_bycell.loc[folder,'effective-volume']
     properties = []
-    for orga in organelles:
+    for orga in [*organelles,"non-organelle"]:
         for prop in ['mean','count','total','total-fraction']:
-            if (orga=="ER") and (prop in ["count","mean"]):
-                continue
-            if (orga=="vacuole") and (prop in ["count","mean"]):
+            if (orga in ["ER","vacuole","non-organelle"]) and (prop in ["count","mean"]):
                 continue
             prop_new = f"{prop}-{orga}"
             properties.append(prop_new)
             df_corrcoef.loc[:,prop_new] = pv_bycell.loc[pv_bycell["organelle"]==orga,prop]
     df_corrcoef.reset_index(inplace=True)
 
-    # # Pairwise relation atlas
-    # fig_pair = sns.PairGrid(df_corrcoef,hue="condition",vars=['effective-length','cell-area','cell-volume',*properties],height=3.0)
-    # fig_pair.map_diag(sns.histplot)
-    # # f_pairig.map_offdiag(sns.scatterplot)
-    # fig_pair.map_upper(sns.scatterplot)
-    # fig_pair.map_lower(sns.kdeplot)
-    # fig_pair.add_legend()
-    # fig_pair.savefig(f"{folder_o}/pairplot_{folder}.png")
-
-    # Pairwise relation individual
-    sns.set_palette(sns.blend_palette(['red','blue']))
-    g = sns.jointplot(
-                      data=df_corrcoef, 
-                      x="cell-volume", y="total-fraction-mitochondria",
-                      hue="condition", kind="kde"
+    # Correlation coefficient
+    np_corrcoef = df_corrcoef.loc[:,['condition','effective-length','cell-area','cell-volume',*properties]].to_numpy()
+    corrcoef = np.corrcoef(np_corrcoef,rowvar=False)
+    fig = px.imshow(
+            corrcoef,
+            x=['condition','effective-length','cell-area','cell-volume',*properties],
+            y=['condition','effective-length','cell-area','cell-volume',*properties],
+            color_continuous_scale = "RdBu_r",range_color=[-1,1]
         )
-    # g.plot_joint(sns.kdeplot, zorder=0, levels=6)
-    g.plot_marginals(sns.rugplot, height=-.15, clip_on=False)
-
-    # # Correlation coefficient
-    # np_corrcoef = df_corrcoef.loc[:,['condition','effective-length','cell-area','cell-volume',*properties]].to_numpy()
-    # corrcoef = np.corrcoef(np_corrcoef,rowvar=False)
-    # fig = px.imshow(
-    #         corrcoef,
-    #         x=['condition','effective-length','cell-area','cell-volume',*properties],
-    #         y=['condition','effective-length','cell-area','cell-volume',*properties],
-    #         color_continuous_scale = "RdBu_r",range_color=[-1,1]
-    #     )
-    # fig.write_html(f"{folder_o}/corrcoef_{folder}.html")
+    fig.write_html(f"{folder_o}/corrcoef-number_{folder}.html")
 
     # for condi in df_corrcoef["condition"].unique():
     #     np_corrcoef = df_corrcoef.loc[df_corrcoef['condition']==condi,['effective-length','cell-area','cell-volume',*properties]].to_numpy()
@@ -203,7 +177,24 @@ for folder in subfolders:
     #         )
     #     fig.write_html(f"{folder_o}/corrcoef_{folder}_{str(condi).replace('.','-')}.html")    
 
-# One layer deeper than correlation coefficient
+    # # Pairwise relation atlas
+    # fig_pair = sns.PairGrid(df_corrcoef,hue="condition",vars=['effective-length','cell-area','cell-volume',*properties],height=3.0)
+    # fig_pair.map_diag(sns.histplot)
+    # # f_pairig.map_offdiag(sns.scatterplot)
+    # fig_pair.map_upper(sns.scatterplot)
+    # fig_pair.map_lower(sns.kdeplot)
+    # fig_pair.add_legend()
+    # fig_pair.savefig(f"{folder_o}/pairplot_{folder}.png")
+
+    # # Pairwise relation individual
+    # sns.set_palette(sns.blend_palette(['red','blue']))
+    # g = sns.jointplot(
+    #                   data=df_corrcoef, 
+    #                   x="cell-volume", y="total-fraction-mitochondria",
+    #                   hue="condition", kind="kde"
+    #     )
+    # # g.plot_joint(sns.kdeplot, zorder=0, levels=6)
+    # g.plot_marginals(sns.rugplot, height=-.15, clip_on=False)
 
 
 # EXPERIMENT CONDITION LEVEL
@@ -217,11 +208,12 @@ df_bycondition.set_index(["folder","condition"],inplace=True)
 df_rates.set_index(["folder","condition"],inplace=True)
 df_bycondition.loc[:,"growth_rate"] = df_rates["growth_rate"]
 df_bycondition.reset_index(inplace=True)
-px.line(
-    df_bycondition.loc[df_bycondition['organelle'].eq("ER")],
-    x='growth_rate',y='total-fraction',
+fig = px.line(
+    df_bycondition.loc[df_bycondition['organelle'].eq("non-organelle")],
+    x='growth_rate',y='total',
     color="folder"
 )
+fig.write_html(str(folder_rate/"non-organelle-vol-total_growth-rate.html"))
 # PLOTS
 
 def plot_histo_violin(df,prop_y,prop_x="cell_area",savepath="histo-violin.html"):
@@ -320,106 +312,159 @@ for folder in subfolders:
 from sklearn.decomposition import PCA
 
 # PCA of volume fraction, and cell size
-def make_pca_plots(property,has_volume=False,is_normalized=False):
+def make_pca_plots(property,has_volume=False,is_normalized=False,non_organelle=False):
     name = f"{'cell-volume' if has_volume else 'organellle-only'}_{property}_{'norm-mean-std' if is_normalized else 'raw'}"
     dict_explained_variance_ratio = {}
     for folder in subfolders:
         df_orga_perfolder = df_bycell[df_bycell["folder"].eq(folder)].set_index(["condition","field","idx-cell"])
         idx = df_orga_perfolder.groupby(["condition","field","idx-cell"]).count().index
-        df_pca = pd.DataFrame(index=idx,columns=organelles)
         
-        columns = organelles
-        num_pc = 6
-        if has_volume:
-            df_pca["cell-volume"] = df_orga_perfolder.loc[df_orga_perfolder["organelle"].eq("ER"),"cell-volume"]
-            columns = ["cell-volume",*organelles]
-            num_pc = 7
+        columns = [*organelles,"non-organelle"] if non_organelle else organelles
+        df_pca = pd.DataFrame(index=idx,columns=columns)
+        num_pc = 7 if non_organelle else 6
         
-        for orga in organelles:
+        for orga in columns:
             df_pca[orga] = df_orga_perfolder.loc[df_orga_perfolder["organelle"].eq(orga),property]
         
+        if has_volume:
+            df_pca["cell-volume"] = df_orga_perfolder.loc[df_orga_perfolder["organelle"].eq("ER"),"cell-volume"]
+            columns = ["cell-volume",*columns]
+            num_pc += 1
+
         if is_normalized:
             for col in columns:
                 df_pca[col] = (df_pca[col]-df_pca[col].mean())/df_pca[col].std()
 
         df_pca.reset_index(inplace=True)
-        df_pca["na_count"] = df_pca.isna().sum(axis=1)
 
-        df_pca_washed = df_pca.fillna(0.)    
-        print(folder,np.bincount(df_pca["na_count"]))
+        # # np.nan already filled before doing PCA.
+        # df_pca["na_count"] = df_pca.isna().sum(axis=1)
+        # df_pca_washed = df_pca.fillna(0.)    
+        # print(folder,np.bincount(df_pca["na_count"]))
 
-        np_pca = df_pca_washed[columns].to_numpy()
+        np_pca = df_pca[columns].to_numpy()
         pca = PCA(n_components=num_pc)
         pca.fit(np_pca)
-        pca_components = [comp if comp[0]>0 else -comp for comp in pca.components_ ]
+        pca_components = np.array([comp if comp[0]>0 else -comp for comp in pca.components_])
+        np.savetxt(f"{folder_o}/pca-components_{folder}_{name}.txt",pca_components)
 
         for i_pc in range(len(pca_components)):
             base = pca_components[i_pc]
-            df_pca_washed[f"proj{i_pc}"] = df_pca_washed.apply(lambda x:np.dot(base,x.loc[columns]),axis=1)
+            df_pca[f"proj{i_pc}"] = df_pca.apply(lambda x:np.dot(base,x.loc[columns]),axis=1)
 
         pc2proj = []
         for k,proj in enumerate(pca_components):
             if len(pc2proj)>2:
                 break
-            if not ((num_pc==6 and np.argmax(np.abs(proj))==1) or (num_pc==7 and np.argmax(np.abs(proj))==2)):
+            if np.argmax(np.abs(proj))!=columns.index("vacuole"):
                 pc2proj.append(k)
-        
-        figproj = go.Figure()
-        figcolors = ["purple","blue","green","yellow","orange","red"]
-        for j,condi in enumerate(pd.unique(df_pca_washed["condition"])):
-            figproj.add_trace(
-                go.Scatter3d(
-                    x=df_pca_washed.loc[df_pca_washed["condition"].eq(condi),f"proj{pc2proj[0]}"],
-                    y=df_pca_washed.loc[df_pca_washed["condition"].eq(condi),f"proj{pc2proj[1]}"],
-                    z=df_pca_washed.loc[df_pca_washed["condition"].eq(condi),f"proj{pc2proj[2]}"],
-                    name=condi,
-                    mode="markers",
-                    marker=dict(size=2,color=figcolors[j],opacity=0.8)
-                    
-                )
+
+
+        # figproj = go.Figure()
+        figproj = plt.figure()
+        ax = figproj.add_subplot(projection="3d")
+
+        for j,condi in enumerate(pd.unique(df_pca["condition"])):
+            pc_x = df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[0]}"],
+            pc_y = df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[1]}"],
+            pc_z = df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[2]}"],
+
+            ax.scatter(
+                pc_x, pc_y, pc_z,
+                alpha=0.6,s=0.3,label=f"{condi}"
             )
-        figproj.update_layout(
-            scene=dict(
-                xaxis=dict(
-                    title=f"proj{pc2proj[0]}",
-                    backgroundcolor='rgba(0,0,0,0)',
-                    gridcolor='grey',
-                    showline = True,
-                    zeroline=True,
-                    zerolinecolor='black'
-                ),
-                yaxis=dict(
-                    title=f"proj{pc2proj[1]}",
-                    backgroundcolor='rgba(0,0,0,0)',
-                    gridcolor='grey',
-                    showline = True,
-                    zeroline=True,
-                    zerolinecolor='black'
-                ),
-                zaxis=dict(
-                    title=f"proj{pc2proj[2]}",
-                    backgroundcolor='rgba(0,0,0,0)',
-                    gridcolor='grey',
-                    showline = True,
-                    zeroline=True,
-                    zerolinecolor='black'
-                )
-            )
+        ax.set_xlabel(f"proj {pc2proj[0]}")
+        ax.set_ylabel(f"proj {pc2proj[1]}")
+        ax.set_zlabel(f"proj {pc2proj[2]}")
+        ax.xaxis.pane.set_edgecolor('black')
+        ax.yaxis.pane.set_edgecolor('black')
+        ax.zaxis.pane.set_edgecolor('black')
+        ax.xaxis.pane.fill = False
+        ax.yaxis.pane.fill = False
+        ax.zaxis.pane.fill = False
+        ax.set_xlim(*(np.round(np.percentile(df_pca[f"proj{pc2proj[0]}"].to_numpy(),[0.1,99.9]))+np.array([-0.5,0.5])))
+        ax.set_ylim(*(np.round(np.percentile(df_pca[f"proj{pc2proj[1]}"].to_numpy(),[0.1,99.9]))+np.array([-0.5,0.5])))
+        ax.set_zlim(*(np.round(np.percentile(df_pca[f"proj{pc2proj[2]}"].to_numpy(),[0.1,99.9]))+np.array([-0.5,0.5])))
+        ax.legend(loc=(1.04,0))
+        figproj.savefig(f"{folder_o}/pca_projection3d_{folder}_{name}_pc{''.join([str(p) for p in pc2proj])}.png")
+
+        sns.set_style("whitegrid")
+        fig_proj01 = sns.scatterplot(
+            data=df_pca,
+            x=f"proj{pc2proj[0]}",y=f"proj{pc2proj[1]}",
+            hue="condition",palette="tab10"
         )
-        figproj.write_html(f"{folder_pca}/pca_projection3d_{folder}_{name}_pc{''.join([str(p) for p in pc2proj])}.html")
+        fig_proj01.savefig(f"{folder_o}/pca_projection3d_{folder}_{name}_pc{pc2proj[0]}{pc2proj[1]}.png")
+
+        fig_proj02 = sns.scatterplot(
+            data=df_pca,
+            x=f"proj{pc2proj[0]}",y=f"proj{pc2proj[2]}",
+            hue="condition"
+        )
+        fig_proj02.savefig(f"{folder_o}/pca_projection3d_{folder}_{name}_pc{pc2proj[0]}{pc2proj[2]}.png")
+
+        fig_proj12 = sns.scatterplot(
+            data=df_pca,
+            x=f"proj{pc2proj[1]}",y=f"proj{pc2proj[2]}",
+            hue="condition"
+        )
+        fig_proj12.savefig(f"{folder_o}/pca_projection3d_{folder}_{name}_pc{pc2proj[1]}{pc2proj[2]}.png")
+
+        # # Use Plotly:
+        #     figproj.add_trace(
+        #         go.Scatter3d(
+        #             x=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[0]}"],
+        #             y=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[1]}"],
+        #             z=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[2]}"],
+        #             name=condi,
+        #             mode="markers",
+        #             marker=dict(size=2,color=figcolors[j],opacity=0.8)   
+        #         )
+        #     )
+        # figproj.update_layout(
+        #     scene=dict(
+        #         xaxis=dict(
+        #             title=f"proj{pc2proj[0]}",
+        #             backgroundcolor='rgba(0,0,0,0)',
+        #             gridcolor='grey',
+        #             showline = True,
+        #             zeroline=True,
+        #             zerolinecolor='black'
+        #         ),
+        #         yaxis=dict(
+        #             title=f"proj{pc2proj[1]}",
+        #             backgroundcolor='rgba(0,0,0,0)',
+        #             gridcolor='grey',
+        #             showline=True,
+        #             zeroline=True,
+        #             zerolinecolor='black'
+        #         ),
+        #         zaxis=dict(
+        #             title=f"proj{pc2proj[2]}",
+        #             backgroundcolor='rgba(0,0,0,0)',
+        #             gridcolor='grey',
+        #             showline = True,
+        #             zeroline=True,
+        #             zerolinecolor='black'
+        #         )
+        #     )
+        # )
+        # figproj.write_html(f"{folder_o}/pca_projection3d_{folder}_{name}_pc{''.join([str(p) for p in pc2proj])}.html")
 
         fig_components = px.imshow(
             pca_components,
             x=columns, y=[f"PC{i}" for i in range(num_pc)],
             color_continuous_scale="RdBu_r", color_continuous_midpoint=0
         )
-        fig_components.write_html(f"{folder_pca}/pca_components_{folder}_{name}.html")
+        fig_components.write_html(f"{folder_o}/pca_components_{folder}_{name}.html")
 
 
     df_explained_variance_ratio = pd.DataFrame(dict_explained_variance_ratio)
-    df_explained_variance_ratio.to_csv(f"{folder_pca}/explained_variance_ratio_{name}.csv",index=False)
+    df_explained_variance_ratio.to_csv(f"{folder_o}/explained_variance_ratio_{name}.csv",index=False)
 
     return None
+
+make_pca_plots("total-fraction",has_volume=False,is_normalized=False,non_organelle=False)
 
 for property in ["total-fraction","total","count"]:
     for has_cell in [True,False]:
