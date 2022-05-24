@@ -7,6 +7,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from pathlib import Path
 
+# Global Variables
+
 px_x,px_y,px_z = 0.41,0.41,0.20
 
 organelles = [
@@ -311,152 +313,156 @@ for folder in subfolders:
 
 from sklearn.decomposition import PCA
 
-# PCA of volume fraction, and cell size
-def make_pca_plots(property,has_volume=False,is_normalized=False,non_organelle=False):
-    name = f"{'cell-volume' if has_volume else 'organellle-only'}_{property}_{'norm-mean-std' if is_normalized else 'raw'}"
+def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=False,non_organelle=False):
+    name = f"{'all-conditions' if groups is None else 'extremes'}_{'has-cytoplasm' if non_organelle else 'no-cytoplasm'}_{'cell-volume' if has_volume else 'organelle-only'}_{property}_{'norm-mean-std' if is_normalized else 'raw'}"
     dict_explained_variance_ratio = {}
-    for folder in subfolders:
-        df_orga_perfolder = df_bycell[df_bycell["folder"].eq(folder)].set_index(["condition","field","idx-cell"])
-        idx = df_orga_perfolder.groupby(["condition","field","idx-cell"]).count().index
         
-        columns = [*organelles,"non-organelle"] if non_organelle else organelles
-        df_pca = pd.DataFrame(index=idx,columns=columns)
-        num_pc = 7 if non_organelle else 6
-        
-        for orga in columns:
-            df_pca[orga] = df_orga_perfolder.loc[df_orga_perfolder["organelle"].eq(orga),property]
-        
-        if has_volume:
-            df_pca["cell-volume"] = df_orga_perfolder.loc[df_orga_perfolder["organelle"].eq("ER"),"cell-volume"]
-            columns = ["cell-volume",*columns]
-            num_pc += 1
+    df_orga_perfolder = df_bycell[df_bycell["folder"].eq(folder)]
+    df_orga_perfolder.set_index(["condition","field","idx-cell"],inplace=True)
+    idx = df_orga_perfolder.groupby(["condition","field","idx-cell"]).count().index
+    
+    columns = [*organelles,"non-organelle"] if non_organelle else organelles
+    df_pca = pd.DataFrame(index=idx,columns=columns)
+    num_pc = 7 if non_organelle else 6
+    
+    for orga in columns:
+        df_pca[orga] = df_orga_perfolder.loc[df_orga_perfolder["organelle"].eq(orga),property]
+    
+    if has_volume:
+        df_pca["cell-volume"] = df_orga_perfolder.loc[df_orga_perfolder["organelle"].eq("ER"),"cell-volume"]
+        columns = ["cell-volume",*columns]
+        num_pc += 1
+    
+    if is_normalized:
+        for col in columns:
+            df_pca[col] = (df_pca[col]-df_pca[col].mean())/df_pca[col].std()
+    
+    df_pca.reset_index(inplace=True)
+    
+    # # np.nan already filled before doing PCA.
+    # df_pca["na_count"] = df_pca.isna().sum(axis=1)
+    # df_pca_washed = df_pca.fillna(0.)    
+    # print(folder,np.bincount(df_pca["na_count"]))
+    
+    np_pca = df_pca[columns].to_numpy()
+    pca = PCA(n_components=num_pc)
+    pca.fit(np_pca)
+    pca_components = np.array([comp if comp[0]>0 else -comp for comp in pca.components_])
+    np.savetxt(f"{folder_o}/pca-components_{folder}_{name}.txt",pca_components)
+    
+    for i_pc in range(len(pca_components)):
+        base = pca_components[i_pc]
+        df_pca[f"proj{i_pc}"] = df_pca.apply(lambda x:np.dot(base,x.loc[columns]),axis=1)
+    pc2proj = []
+    
+    for k,proj in enumerate(pca_components):
+        if len(pc2proj)>2:
+            break
+        if np.argmax(np.abs(proj))!=columns.index("vacuole"):
+            pc2proj.append(k)
 
-        if is_normalized:
-            for col in columns:
-                df_pca[col] = (df_pca[col]-df_pca[col].mean())/df_pca[col].std()
+    if groups is not None:
+        df_pca = df_pca.loc[df_pca["condition"].isin(groups)]
 
-        df_pca.reset_index(inplace=True)
-
-        # # np.nan already filled before doing PCA.
-        # df_pca["na_count"] = df_pca.isna().sum(axis=1)
-        # df_pca_washed = df_pca.fillna(0.)    
-        # print(folder,np.bincount(df_pca["na_count"]))
-
-        np_pca = df_pca[columns].to_numpy()
-        pca = PCA(n_components=num_pc)
-        pca.fit(np_pca)
-        pca_components = np.array([comp if comp[0]>0 else -comp for comp in pca.components_])
-        np.savetxt(f"{folder_o}/pca-components_{folder}_{name}.txt",pca_components)
-
-        for i_pc in range(len(pca_components)):
-            base = pca_components[i_pc]
-            df_pca[f"proj{i_pc}"] = df_pca.apply(lambda x:np.dot(base,x.loc[columns]),axis=1)
-
-        pc2proj = []
-        for k,proj in enumerate(pca_components):
-            if len(pc2proj)>2:
-                break
-            if np.argmax(np.abs(proj))!=columns.index("vacuole"):
-                pc2proj.append(k)
-
-
-        # figproj = go.Figure()
-        figproj = plt.figure()
-        ax = figproj.add_subplot(projection="3d")
-
-        for j,condi in enumerate(pd.unique(df_pca["condition"])):
-            pc_x = df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[0]}"],
-            pc_y = df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[1]}"],
-            pc_z = df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[2]}"],
-
-            ax.scatter(
-                pc_x, pc_y, pc_z,
-                alpha=0.6,s=0.3,label=f"{condi}"
-            )
-        ax.set_xlabel(f"proj {pc2proj[0]}")
-        ax.set_ylabel(f"proj {pc2proj[1]}")
-        ax.set_zlabel(f"proj {pc2proj[2]}")
-        ax.xaxis.pane.set_edgecolor('black')
-        ax.yaxis.pane.set_edgecolor('black')
-        ax.zaxis.pane.set_edgecolor('black')
-        ax.xaxis.pane.fill = False
-        ax.yaxis.pane.fill = False
-        ax.zaxis.pane.fill = False
-        ax.set_xlim(*(np.round(np.percentile(df_pca[f"proj{pc2proj[0]}"].to_numpy(),[0.1,99.9]))+np.array([-0.5,0.5])))
-        ax.set_ylim(*(np.round(np.percentile(df_pca[f"proj{pc2proj[1]}"].to_numpy(),[0.1,99.9]))+np.array([-0.5,0.5])))
-        ax.set_zlim(*(np.round(np.percentile(df_pca[f"proj{pc2proj[2]}"].to_numpy(),[0.1,99.9]))+np.array([-0.5,0.5])))
-        ax.legend(loc=(1.04,0))
-        figproj.savefig(f"{folder_o}/pca_projection3d_{folder}_{name}_pc{''.join([str(p) for p in pc2proj])}.png")
-
-        sns.set_style("whitegrid")
-        fig_proj01 = sns.scatterplot(
-            data=df_pca,
-            x=f"proj{pc2proj[0]}",y=f"proj{pc2proj[1]}",
-            hue="condition",palette="tab10"
+    figproj = plt.figure(figsize=(10,8))
+    ax = figproj.add_subplot(projection="3d")
+    for condi in pd.unique(df_pca["condition"]):
+        pc_x = df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[0]}"],
+        pc_y = df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[1]}"],
+        pc_z = df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[2]}"],
+        ax.scatter(
+            pc_x, pc_y, pc_z,
+            alpha=0.2,label=f"{condi}"
         )
-        fig_proj01.savefig(f"{folder_o}/pca_projection3d_{folder}_{name}_pc{pc2proj[0]}{pc2proj[1]}.png")
-
-        fig_proj02 = sns.scatterplot(
-            data=df_pca,
-            x=f"proj{pc2proj[0]}",y=f"proj{pc2proj[2]}",
-            hue="condition"
-        )
-        fig_proj02.savefig(f"{folder_o}/pca_projection3d_{folder}_{name}_pc{pc2proj[0]}{pc2proj[2]}.png")
-
-        fig_proj12 = sns.scatterplot(
-            data=df_pca,
-            x=f"proj{pc2proj[1]}",y=f"proj{pc2proj[2]}",
-            hue="condition"
-        )
-        fig_proj12.savefig(f"{folder_o}/pca_projection3d_{folder}_{name}_pc{pc2proj[1]}{pc2proj[2]}.png")
-
-        # # Use Plotly:
-        #     figproj.add_trace(
-        #         go.Scatter3d(
-        #             x=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[0]}"],
-        #             y=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[1]}"],
-        #             z=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[2]}"],
-        #             name=condi,
-        #             mode="markers",
-        #             marker=dict(size=2,color=figcolors[j],opacity=0.8)   
-        #         )
-        #     )
-        # figproj.update_layout(
-        #     scene=dict(
-        #         xaxis=dict(
-        #             title=f"proj{pc2proj[0]}",
-        #             backgroundcolor='rgba(0,0,0,0)',
-        #             gridcolor='grey',
-        #             showline = True,
-        #             zeroline=True,
-        #             zerolinecolor='black'
-        #         ),
-        #         yaxis=dict(
-        #             title=f"proj{pc2proj[1]}",
-        #             backgroundcolor='rgba(0,0,0,0)',
-        #             gridcolor='grey',
-        #             showline=True,
-        #             zeroline=True,
-        #             zerolinecolor='black'
-        #         ),
-        #         zaxis=dict(
-        #             title=f"proj{pc2proj[2]}",
-        #             backgroundcolor='rgba(0,0,0,0)',
-        #             gridcolor='grey',
-        #             showline = True,
-        #             zeroline=True,
-        #             zerolinecolor='black'
-        #         )
-        #     )
-        # )
-        # figproj.write_html(f"{folder_o}/pca_projection3d_{folder}_{name}_pc{''.join([str(p) for p in pc2proj])}.html")
-
-        fig_components = px.imshow(
-            pca_components,
-            x=columns, y=[f"PC{i}" for i in range(num_pc)],
-            color_continuous_scale="RdBu_r", color_continuous_midpoint=0
-        )
-        fig_components.write_html(f"{folder_o}/pca_components_{folder}_{name}.html")
+    ax.set_xlabel(f"proj {pc2proj[0]}")
+    ax.set_ylabel(f"proj {pc2proj[1]}")
+    ax.set_zlabel(f"proj {pc2proj[2]}")
+    ax.xaxis.pane.set_edgecolor('black')
+    ax.yaxis.pane.set_edgecolor('black')
+    ax.zaxis.pane.set_edgecolor('black')
+    ax.xaxis.pane.fill = False
+    ax.yaxis.pane.fill = False
+    ax.zaxis.pane.fill = False
+    ax.set_xlim(*(np.percentile(df_pca[f"proj{pc2proj[0]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
+    ax.set_ylim(*(np.percentile(df_pca[f"proj{pc2proj[1]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
+    ax.set_zlim(*(np.percentile(df_pca[f"proj{pc2proj[2]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
+    ax.legend(loc=(1.04,0.5))
+    figproj.savefig(f"{folder_o}/pca_projection3d_{folder}_{name}_pc{''.join([str(p) for p in pc2proj])}.png")
+    sns.set_style("whitegrid")
+    plt.figure()
+    sns.scatterplot(
+        data=df_pca,
+        x=f"proj{pc2proj[0]}",y=f"proj{pc2proj[1]}",
+        hue="condition",palette="tab10",alpha=0.5
+    )
+    plt.savefig(f"{folder_o}/pca_projection2d_{folder}_{name}_pc{pc2proj[0]}{pc2proj[1]}.png")
+    plt.figure()
+    sns.scatterplot(
+        data=df_pca,
+        x=f"proj{pc2proj[0]}",y=f"proj{pc2proj[2]}",
+        hue="condition",palette="tab10",alpha=0.5
+    )
+    plt.savefig(f"{folder_o}/pca_projection2d_{folder}_{name}_pc{pc2proj[0]}{pc2proj[2]}.png")
+    plt.figure()
+    sns.scatterplot(
+        data=df_pca,
+        x=f"proj{pc2proj[1]}",y=f"proj{pc2proj[2]}",
+        hue="condition",palette="tab10",alpha=0.5
+    )
+    plt.savefig(f"{folder_o}/pca_projection2d_{folder}_{name}_pc{pc2proj[1]}{pc2proj[2]}.png")
+    
+    # # draw with Plotly:
+    # figproj = go.Figure()
+    # for condi in pd.unique(df_pca["condition"]):
+    #     figproj.add_trace(
+    #         go.Scatter3d(
+    #             x=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[0]}"],
+    #             y=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[1]}"],
+    #             z=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[2]}"],
+    #             name=condi,
+    #             mode="markers",
+    #             marker=dict(
+    #                         size=2,
+    #                         # color=figcolors[j],
+    #                         opacity=0.8
+    #                    )   
+    #         )
+    #     )
+    # figproj.update_layout(
+    #     scene=dict(
+    #         xaxis=dict(
+    #             title=f"proj{pc2proj[0]}",
+    #             backgroundcolor='rgba(0,0,0,0)',
+    #             gridcolor='grey',
+    #             showline = True,
+    #             zeroline=True,
+    #             zerolinecolor='black'
+    #         ),
+    #         yaxis=dict(
+    #             title=f"proj{pc2proj[1]}",
+    #             backgroundcolor='rgba(0,0,0,0)',
+    #             gridcolor='grey',
+    #             showline=True,
+    #             zeroline=True,
+    #             zerolinecolor='black'
+    #         ),
+    #         zaxis=dict(
+    #             title=f"proj{pc2proj[2]}",
+    #             backgroundcolor='rgba(0,0,0,0)',
+    #             gridcolor='grey',
+    #             showline = True,
+    #             zeroline=True,
+    #             zerolinecolor='black'
+    #         )
+    #     )
+    # )
+    # figproj.write_html(f"{folder_o}/pca_projection3d_{folder}_{name}_pc{''.join([str(p) for p in pc2proj])}.html")
+    fig_components = px.imshow(
+        pca_components,
+        x=columns, y=[f"PC{i}" for i in range(num_pc)],
+        color_continuous_scale="RdBu_r", color_continuous_midpoint=0
+    )
+    fig_components.write_html(f"{folder_o}/pca_components_{folder}_{name}.html")
 
 
     df_explained_variance_ratio = pd.DataFrame(dict_explained_variance_ratio)
@@ -464,9 +470,61 @@ def make_pca_plots(property,has_volume=False,is_normalized=False,non_organelle=F
 
     return None
 
-make_pca_plots("total-fraction",has_volume=False,is_normalized=False,non_organelle=False)
+# for property in ["total-fraction","total","count"]:
+#     for has_cell in [True,False]:
+#         for if_normalized in [True,False]:
+#             make_pca_plots(property,has_volume=has_cell,is_normalized=if_normalized)
 
-for property in ["total-fraction","total","count"]:
-    for has_cell in [True,False]:
-        for if_normalized in [True,False]:
-            make_pca_plots(property,has_volume=has_cell,is_normalized=if_normalized)
+extremes = {
+    "EYrainbow_glucose_largerBF":    [0.,100.],
+    "EYrainbow_leucine_large":       [0.,100.],
+    "EYrainbowWhi5Up_betaEstrodiol": [0.,10.],
+    "EYrainbow_rapamycin_1stTry":    [0.,1000.],
+    "EYrainbow_1nmpp1_1st":          [0.,3000.]
+}
+for folder in extremes.keys():
+    make_pca_plots(folder,"total-fraction",groups=extremes[folder],has_volume=False,is_normalized=False,non_organelle=False)
+
+# Radar charts for the principal components of PCA
+df_pc_components = []
+for folder in extremes.keys():
+    np_pc = np.loadtxt(str(folder_o/f"pca-components_{folder}_organellle-only_total-fraction_raw.txt"))
+    for i,pc in enumerate(np_pc):
+        if np.max(pc)!=np.max(np.abs(pc)):
+            pc = -pc
+        df_pc_components.append({
+            "experiment": folder,
+            "PC": f"PC{i}",
+            "organelle": organelles,
+            "value": pc,
+            "abs":   np.abs(pc),
+            "argmax": np.argmax(np.abs(pc))
+        })
+df_pc_components = pd.concat([pd.DataFrame(d) for d in df_pc_components],ignore_index=True)
+
+# compare the i-th most significant principal components in different experiments 
+for i in range(6):
+    plt.figure(figsize=(8,4))
+    ax = sns.barplot(
+        data=df_pc_components.loc[df_pc_components["PC"].eq(f"PC{i}")],
+        x="organelle",y="value",hue="experiment",
+        palette="Set2"
+    )
+    sns.move_legend(ax, "upper right", bbox_to_anchor=(1.75, 1))
+    plt.title(f"PC{i}")
+    plt.subplots_adjust(right=0.65)
+    plt.savefig(f"{folder_o}/PC_compare_pc{i}.png")
+
+# compare the principal components that j-th organelle stands out
+for i in range(6):
+    plt.figure(figsize=(8,4))
+    ax = sns.barplot(
+        data=df_pc_components.loc[df_pc_components["argmax"].eq(i)],
+        x="organelle",y="value",hue="experiment",
+        palette="Set2"
+    )
+    sns.move_legend(ax, "upper right", bbox_to_anchor=(1.75, 1))
+    plt.title(f"{organelles[i]}")
+    plt.subplots_adjust(right=0.65)
+    plt.savefig(f"{folder_o}/PC_compare_organelle_{organelles[i]}.png")
+    
