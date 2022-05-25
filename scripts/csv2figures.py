@@ -347,7 +347,7 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
     np_pca = df_pca[columns].to_numpy()
     pca = PCA(n_components=num_pc)
     pca.fit(np_pca)
-    pca_components = np.array([comp if comp[0]>0 else -comp for comp in pca.components_])
+    pca_components = np.array([comp if comp[np.argmax(np.abs(comp))]>0 else -comp for comp in pca.components_])
     np.savetxt(f"{folder_o}/pca-components_{folder}_{name}.txt",pca_components)
     
     for i_pc in range(len(pca_components)):
@@ -483,7 +483,7 @@ extremes = {
     "EYrainbow_1nmpp1_1st":          [0.,3000.]
 }
 for folder in extremes.keys():
-    make_pca_plots(folder,"total-fraction",groups=extremes[folder],has_volume=False,is_normalized=False,non_organelle=False)
+    make_pca_plots(folder,"total-fraction",groups=extremes[folder],has_volume=True,is_normalized=True,non_organelle=False)
 
 # Radar charts for the principal components of PCA
 df_pc_components = []
