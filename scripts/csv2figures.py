@@ -1,3 +1,4 @@
+from ast import arg
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -34,7 +35,11 @@ subfolders = [
 folder_i = Path("./data/results")
 folder_o = Path("./data/figures")
 folder_rate = Path("./data/growthrate")
-# folder_pca = Path("./data/figures/pca_transparent_bkgd")
+folder_correlation = Path("./data/correlation")
+folder_pca_data = Path("./data/pca_data")
+folder_pca_proj = Path("./data/pca_projection")
+folder_pca_compare = Path("./data/pca_compare")
+
 
 
 # READ FILES
@@ -166,7 +171,7 @@ for folder in subfolders:
             y=['condition','effective-length','cell-area','cell-volume',*properties],
             color_continuous_scale = "RdBu_r",range_color=[-1,1]
         )
-    fig.write_html(f"{folder_o}/corrcoef-number_{folder}.html")
+    fig.write_html(f"{folder_correlation}/corrcoef-number_{folder}.html")
 
     # for condi in df_corrcoef["condition"].unique():
     #     np_corrcoef = df_corrcoef.loc[df_corrcoef['condition']==condi,['effective-length','cell-area','cell-volume',*properties]].to_numpy()
@@ -177,7 +182,7 @@ for folder in subfolders:
     #             y=['effective-length','cell-area','cell-volume',*properties],
     #             color_continuous_scale="RdBu_r",range_color=[-1,1]
     #         )
-    #     fig.write_html(f"{folder_o}/corrcoef_{folder}_{str(condi).replace('.','-')}.html")    
+    #     fig.write_html(f"{folder_correlation}/corrcoef_{folder}_{str(condi).replace('.','-')}.html")    
 
     # # Pairwise relation atlas
     # fig_pair = sns.PairGrid(df_corrcoef,hue="condition",vars=['effective-length','cell-area','cell-volume',*properties],height=3.0)
@@ -186,7 +191,7 @@ for folder in subfolders:
     # fig_pair.map_upper(sns.scatterplot)
     # fig_pair.map_lower(sns.kdeplot)
     # fig_pair.add_legend()
-    # fig_pair.savefig(f"{folder_o}/pairplot_{folder}.png")
+    # fig_pair.savefig(f"{folder_correlation}/pairplot_{folder}.png")
 
     # # Pairwise relation individual
     # sns.set_palette(sns.blend_palette(['red','blue']))
@@ -312,10 +317,10 @@ for folder in subfolders:
 
 
 from sklearn.decomposition import PCA
+from sklearn.linear_model import LinearRegression
 
 def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=False,non_organelle=False):
     name = f"{'all-conditions' if groups is None else 'extremes'}_{'has-cytoplasm' if non_organelle else 'no-cytoplasm'}_{'cell-volume' if has_volume else 'organelle-only'}_{property}_{'norm-mean-std' if is_normalized else 'raw'}"
-    dict_explained_variance_ratio = {}
         
     df_orga_perfolder = df_bycell[df_bycell["folder"].eq(folder)]
     df_orga_perfolder.set_index(["condition","field","idx-cell"],inplace=True)
@@ -338,29 +343,62 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
             df_pca[col] = (df_pca[col]-df_pca[col].mean())/df_pca[col].std()
     
     df_pca.reset_index(inplace=True)
-    
-    # # np.nan already filled before doing PCA.
-    # df_pca["na_count"] = df_pca.isna().sum(axis=1)
-    # df_pca_washed = df_pca.fillna(0.)    
-    # print(folder,np.bincount(df_pca["na_count"]))
-    
+
     np_pca = df_pca[columns].to_numpy()
     pca = PCA(n_components=num_pc)
     pca.fit(np_pca)
     pca_components = np.array([comp if comp[np.argmax(np.abs(comp))]>0 else -comp for comp in pca.components_])
-    np.savetxt(f"{folder_o}/pca-components_{folder}_{name}.txt",pca_components)
+    np.savetxt(f"{folder_pca_data}/pca-components_{folder}_{name}.txt",pca_components)
     
+    fig_components = px.imshow(
+        pca_components,
+        x=columns, y=[f"PC{i}" for i in range(num_pc)],
+        color_continuous_scale="RdBu_r", color_continuous_midpoint=0
+    )
+    fig_components.write_html(f"{folder_pca_data}/pca_components_{folder}_{name}.html")
+
+
+    # Find the the direction of the condition change:
+    df_centroid = df_pca.groupby("condition")[columns].mean()
+    fitter_centroid = LinearRegression(fit_intercept=False)
+    np_centroid = df_centroid.to_numpy()
+    fitter_centroid.fit(np_centroid,np.ones(np_centroid.shape[0]))
+    
+    vec_centroid_start = np_centroid[0]
+    vec_centroid_start[-1] = (1 - np.dot(fitter_centroid.coef_[:-1],vec_centroid_start[:-1]))/fitter_centroid.coef_[-1]
+    vec_centroid_ended = np_centroid[-1]
+    vec_centroid_ended[-1] = (1 - np.dot(fitter_centroid.coef_[:-1],vec_centroid_ended[:-1]))/fitter_centroid.coef_[-1]
+    vec_centroid = vec_centroid_ended - vec_centroid_start
+    vec_centroid = vec_centroid/np.linalg.norm(vec_centroid)
+
+    cosine_pca = np.dot(pca_components,vec_centroid)
+    cosine_pca = np.abs(cosine_pca)
+
+    arg_cosine = np.argsort(cosine_pca)[::-1]
+    pca_components_sorted = pca_components[arg_cosine]
+    np.savetxt(f"{folder_pca_compare}/condition-sorted-pca-components_{folder}_{name}.txt",pca_components_sorted)
+
+    fig_components_sorted = px.imshow(
+        pca_components_sorted,
+        x=columns, y=[f"PC{i}" for i in arg_cosine],
+        color_continuous_scale="RdBu_r", color_continuous_midpoint=0
+    )
+    fig_components_sorted.write_html(f"{folder_pca_compare}/condition-sorted-pca_components_{folder}_{name}.html")
+    
+    plt.figure()
+    plt.barh(np.arange(num_pc),cosine_pca[arg_cosine[::-1]],align='center')
+    plt.yticks(np.arange(num_pc),[f"PC{i}" for i in arg_cosine[::-1]])
+    plt.xlabel(r"$cos\left<condition\ vector,PC\right>$")
+    plt.title(f"{folder}")
+    plt.savefig(f"{folder_pca_compare}/condition-sorted-cosine_{folder}_{name}.png")
+
+
+    # draw projections onto the PCs
     for i_pc in range(len(pca_components)):
         base = pca_components[i_pc]
         df_pca[f"proj{i_pc}"] = df_pca.apply(lambda x:np.dot(base,x.loc[columns]),axis=1)
-    pc2proj = []
     
-    for k,proj in enumerate(pca_components):
-        if len(pc2proj)>2:
-            break
-        if np.argmax(np.abs(proj))!=columns.index("vacuole"):
-            pc2proj.append(k)
-
+    pc2proj = arg_cosine[:3]
     if groups is not None:
         df_pca = df_pca.loc[df_pca["condition"].isin(groups)]
 
@@ -387,7 +425,7 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
     ax.set_ylim(*(np.percentile(df_pca[f"proj{pc2proj[1]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
     ax.set_zlim(*(np.percentile(df_pca[f"proj{pc2proj[2]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
     ax.legend(loc=(1.04,0.5))
-    figproj.savefig(f"{folder_o}/pca_projection3d_{folder}_{name}_pc{''.join([str(p) for p in pc2proj])}.png")
+    figproj.savefig(f"{folder_pca_proj}/pca_projection3d_{folder}_{name}_pc{''.join([str(p) for p in pc2proj])}.png")
     sns.set_style("whitegrid")
     plt.figure()
     sns.scatterplot(
@@ -395,21 +433,21 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
         x=f"proj{pc2proj[0]}",y=f"proj{pc2proj[1]}",
         hue="condition",palette="tab10",alpha=0.5
     )
-    plt.savefig(f"{folder_o}/pca_projection2d_{folder}_{name}_pc{pc2proj[0]}{pc2proj[1]}.png")
+    plt.savefig(f"{folder_pca_proj}/pca_projection2d_{folder}_{name}_pc{pc2proj[0]}{pc2proj[1]}.png")
     plt.figure()
     sns.scatterplot(
         data=df_pca,
         x=f"proj{pc2proj[0]}",y=f"proj{pc2proj[2]}",
         hue="condition",palette="tab10",alpha=0.5
     )
-    plt.savefig(f"{folder_o}/pca_projection2d_{folder}_{name}_pc{pc2proj[0]}{pc2proj[2]}.png")
+    plt.savefig(f"{folder_pca_proj}/pca_projection2d_{folder}_{name}_pc{pc2proj[0]}{pc2proj[2]}.png")
     plt.figure()
     sns.scatterplot(
         data=df_pca,
         x=f"proj{pc2proj[1]}",y=f"proj{pc2proj[2]}",
         hue="condition",palette="tab10",alpha=0.5
     )
-    plt.savefig(f"{folder_o}/pca_projection2d_{folder}_{name}_pc{pc2proj[1]}{pc2proj[2]}.png")
+    plt.savefig(f"{folder_pca_proj}/pca_projection2d_{folder}_{name}_pc{pc2proj[1]}{pc2proj[2]}.png")
     
     # # draw with Plotly:
     # figproj = go.Figure()
@@ -456,17 +494,7 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
     #         )
     #     )
     # )
-    # figproj.write_html(f"{folder_o}/pca_projection3d_{folder}_{name}_pc{''.join([str(p) for p in pc2proj])}.html")
-    fig_components = px.imshow(
-        pca_components,
-        x=columns, y=[f"PC{i}" for i in range(num_pc)],
-        color_continuous_scale="RdBu_r", color_continuous_midpoint=0
-    )
-    fig_components.write_html(f"{folder_o}/pca_components_{folder}_{name}.html")
-
-
-    df_explained_variance_ratio = pd.DataFrame(dict_explained_variance_ratio)
-    df_explained_variance_ratio.to_csv(f"{folder_o}/explained_variance_ratio_{name}.csv",index=False)
+    # figproj.write_html(f"{folder_pca_proj}/pca_projection3d_{folder}_{name}_pc{''.join([str(p) for p in pc2proj])}.html")
 
     return None
 
@@ -476,55 +504,15 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
 #             make_pca_plots(property,has_volume=has_cell,is_normalized=if_normalized)
 
 extremes = {
-    "EYrainbow_glucose_largerBF":    [0.,100.],
-    "EYrainbow_leucine_large":       [0.,100.],
+    "EYrainbow_glucose_largerBF":    [100.,0.],
+    "EYrainbow_leucine_large":       [100.,0.],
     "EYrainbowWhi5Up_betaEstrodiol": [0.,10.],
     "EYrainbow_rapamycin_1stTry":    [0.,1000.],
     "EYrainbow_1nmpp1_1st":          [0.,3000.]
 }
+# dict_explained_variance_ratio = {}
 for folder in extremes.keys():
     make_pca_plots(folder,"total-fraction",groups=extremes[folder],has_volume=True,is_normalized=True,non_organelle=False)
+# df_explained_variance_ratio = pd.DataFrame(dict_explained_variance_ratio)
+# df_explained_variance_ratio.to_csv(f"{folder_pca_data}/explained_variance_ratio_{name}.csv",index=False)
 
-# Radar charts for the principal components of PCA
-df_pc_components = []
-for folder in extremes.keys():
-    np_pc = np.loadtxt(str(folder_o/f"pca-components_{folder}_organellle-only_total-fraction_raw.txt"))
-    for i,pc in enumerate(np_pc):
-        if np.max(pc)!=np.max(np.abs(pc)):
-            pc = -pc
-        df_pc_components.append({
-            "experiment": folder,
-            "PC": f"PC{i}",
-            "organelle": organelles,
-            "value": pc,
-            "abs":   np.abs(pc),
-            "argmax": np.argmax(np.abs(pc))
-        })
-df_pc_components = pd.concat([pd.DataFrame(d) for d in df_pc_components],ignore_index=True)
-
-# compare the i-th most significant principal components in different experiments 
-for i in range(6):
-    plt.figure(figsize=(8,4))
-    ax = sns.barplot(
-        data=df_pc_components.loc[df_pc_components["PC"].eq(f"PC{i}")],
-        x="organelle",y="value",hue="experiment",
-        palette="Set2"
-    )
-    sns.move_legend(ax, "upper right", bbox_to_anchor=(1.75, 1))
-    plt.title(f"PC{i}")
-    plt.subplots_adjust(right=0.65)
-    plt.savefig(f"{folder_o}/PC_compare_pc{i}.png")
-
-# compare the principal components that j-th organelle stands out
-for i in range(6):
-    plt.figure(figsize=(8,4))
-    ax = sns.barplot(
-        data=df_pc_components.loc[df_pc_components["argmax"].eq(i)],
-        x="organelle",y="value",hue="experiment",
-        palette="Set2"
-    )
-    sns.move_legend(ax, "upper right", bbox_to_anchor=(1.75, 1))
-    plt.title(f"{organelles[i]}")
-    plt.subplots_adjust(right=0.65)
-    plt.savefig(f"{folder_o}/PC_compare_organelle_{organelles[i]}.png")
-    
