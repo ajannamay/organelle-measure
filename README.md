@@ -18,3 +18,24 @@
   ```bash
   code . & 
   ```
+
+## File Structure
+
+- `data/`: output of the pipeline, ignored by git and synced with other tools
+  - `ilastik/`: ilastik projects used to segment the images
+  - `results/`: csv files containing the cell and organelle properties
+  - `figures/`
+  - `spectra/`
+  - ...
+- `images/`: read-only microscopy images, ignored by git and synced with other tools
+  - `experiemnt1/`
+- `scripts/`: scripts to batch process the images. Often uses `batch_apply()` function in `organelle_measure/`
+  - `postprocess_vacuole_allround1data.py`
+  - ...
+- `notebooks/`: playground to try new methods
+  - `notebook1.py`
+  - `notebook2.py`
+  - ... 
+- `test/`: files need by 
+- `organelle_measure/`
+  - reusable scripts used by notebooks and scripts.
