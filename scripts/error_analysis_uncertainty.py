@@ -4,7 +4,7 @@ import pandas as pd
 from pathlib import Path
 
 folder_i = Path("images/preprocessed")
-path_o = Path("data/image_error.csv")
+path_o = Path("data/image_error_uncertainty.csv")
 
 def img_err_multichannel(path_probs,path_error):
     with h5py.File(str(path_probs),'r') as f_probs:
@@ -15,23 +15,21 @@ def img_err_multichannel(path_probs,path_error):
     img_truth = np.argmax(img_probs,axis=0)
 
     img_truth_pex = (img_truth==1)
-    img_truth_vac = (img_truth>0)
-
     img_asked_pex = ((2.*img_probs[1]-1.)<img_error[0])
-    img_asked_vac = ((1.-2.*img_probs[0])<img_error[0])
-
     img_inner_pex = np.logical_and(img_truth_pex,img_asked_pex)
-    img_inner_vac = np.logical_and(img_truth_vac,img_asked_vac)
-
     img_outer_pex = np.logical_and(
                         np.logical_not(img_truth_pex),
                         img_asked_pex
                     )
+
+    img_truth_vac = (img_truth>0)
+    img_asked_vac = ((1.-2.*img_probs[0])<img_error[0])
+    img_inner_vac = np.logical_and(img_truth_vac,img_asked_vac)
     img_outer_vac = np.logical_and(
                         np.logical_not(img_truth_vac),
                         img_asked_vac
                     )
-    
+
     return {
         "pixel_lower": [
                         (px_lo_p:=np.count_nonzero(img_inner_pex)),

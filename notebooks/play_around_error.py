@@ -15,12 +15,16 @@ with h5py.File(str(path_error),'r') as f_error:
     img_error = f_error["exported_data"][:]
 
 img_truth = (img_probs[1]>0.5)
-img_asked = (img_probs[1]-img_probs[0]>img_error[0])
+img_asked = (img_probs[1]-img_probs[0]<img_error[0])
 img_inner = np.logical_and(img_truth,img_asked)
 img_outer = np.logical_and(
                 np.logical_not(img_truth),
                 img_asked
             )
+possible_probs = np.unique(img_probs)
+idx, = np.where(possible_probs==0.5)
+prob_inner = possible_probs[idx[0]+1]
+prob_outer = possible_probs[idx[0]-1]
 
 # Leucine large blue channels: peroxisome and vacuole in same file:
 
@@ -31,3 +35,5 @@ with h5py.File(str(path_probs),'r') as f_probs:
     img_probs = f_probs["exported_data"][:]
 with h5py.File(str(path_error),'r') as f_error:
     img_error = f_error["exported_data"][:]
+
+img_truth = np.argmax(img_probs,axis=0)
