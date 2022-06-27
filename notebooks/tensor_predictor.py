@@ -4,14 +4,14 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 from torch import optim
-from torch.utils.data import TensorDataset,DataLoader
+from torch.utils.data import TensorDataset,DataLoader,random_split
 from torch.utils.tensorboard import SummaryWriter
 from pathlib import Path
 from organelle_measure.data import read_results
 
 
 # Chores: Using GPU, TensorBoard
-print("Whether CUDA is available: ",torch.cuda.is_available())
+print("Is CUDA available?: ",torch.cuda.is_available())
 dev = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 writer = SummaryWriter('data/tensorboard/draft')
@@ -26,8 +26,14 @@ def get_data(train_ds, valid_ds, bs):
 
 
 # Model
+def quadratic_form(vec,matrix):
+    return vec @ matrix @ vec
 
-class OrganelleRegressor(nn.Module):
+class CellSizePredictor(nn.Module):
+    """ 
+    input should have (2*num_organelle) dimensions,
+    first half to be average volume, second half numbers 
+    """
     def __init__(self,n_input):
         """
         output = Sum_i(A_i*x_i)+Sum_ij(x_i*B_ij*x_j)+C 
@@ -41,10 +47,17 @@ class OrganelleRegressor(nn.Module):
 
     def forward(self,x):
         # assert x.shape[0]==2*self.n_input, "Input Dimension Error!"
-        average = x[:self.n_input]
-        numbers = x[-self.n_input:]
+        average = x[:,:self.n_input]
+        numbers = x[:,-self.n_input:]
         organelle = numbers * torch.pow(average,self.alpha)
-        return self.A @ organelle + organelle @ self.B @ organelle + self.C
+        return (
+            organelle @ self.A + 
+            torch.stack(
+                [quadratic_form(vec,self.B) for vec in torch.unbind(organelle,dim=0)],
+                dim=0
+            ) + 
+            self.C
+        )
 
 class OrganelleClassifier(nn.Module):
     def __init__(self,n_input,n_output) -> None:
@@ -58,22 +71,22 @@ class OrganelleClassifier(nn.Module):
 
     def forward(self,x):
         # assert x.shape[0]==2*self.n_input, "Input Dimension Error!"
-        average = x[:self.n_input]
-        numbers = x[-self.n_input-1:-1]
+        average = x[:,:self.n_input]
+        numbers = x[:,-self.n_input-1:-1]
         cellvol = x[-1]
         organelle = numbers * torch.pow(average,self.alpha) / cellvol
-        raw = (
-            torch.tensordot(self.A,organelle,dims=1) + 
-            torch.tensordot(
-                torch.tensordot(organelle,self.B,dims=1),
-                organelle,
-                dims=1
-            ) + 
-            self.C
-        )
+        # raw = (
+        #     torch.tensordot(self.A,organelle,dims=1) + 
+        #     torch.tensordot(
+        #         torch.tensordot(organelle,self.B,dims=1),
+        #         organelle,
+        #         dims=1
+        #     ) + 
+        #     self.C
+        # )
         return raw/torch.sum(raw)
-model = OrganelleClassifier(6,4)
-writer.add_graph(model=model,input_to_model=torch.zeros(13))
+# model = OrganelleClassifier(6,4)
+# writer.add_graph(model=model,input_to_model=torch.zeros(13))
 
 # Pipeline
 
@@ -94,9 +107,11 @@ def loss_batch(model, loss_func, xb, yb, opt=None):
 
 def fit(epochs, model, loss_func, opt, train_dl, valid_dl):
     for epoch in range(epochs):
+        print("")
         model.train()
         for xb, yb in train_dl:
-            loss_batch(model, loss_func, xb, yb, opt)
+            loss,_  = loss_batch(model, loss_func, xb, yb, opt)
+            writer.add_scalar(tag="loss in a training batch",scalar_value=loss)
 
         model.eval()
         with torch.no_grad():
@@ -104,7 +119,7 @@ def fit(epochs, model, loss_func, opt, train_dl, valid_dl):
                 *[loss_batch(model, loss_func, xb, yb) for xb, yb in valid_dl]
             )
         val_loss = np.sum(np.multiply(losses, nums)) / np.sum(nums)
-        # val_accuracy = 
+        writer.add_scalar(tag="loss in a validation batch",scalar_value=val_loss)
 
         print(epoch, val_loss)
     return None
@@ -115,9 +130,10 @@ def fit(epochs, model, loss_func, opt, train_dl, valid_dl):
 # hyperparameters
 learning_rate = 0.1
 epochs = 2
-batch_size = 64
-# training_type = "regress"
-training_type = "classify"
+batch_size = 256
+training_ratio = 0.80
+training_type = "regress"
+# training_type = "classify"
 
 # data
 px_x,px_y,px_z = 0.41,0.41,0.20
@@ -140,26 +156,43 @@ subfolders = [
     "EYrainbowWhi5Up_betaEstrodiol"
 ]
 folder_i = Path("./data/results")
-df_bycell = read_results(folder_i,subfolders,(px_x,px_y,px_z))
+path_rate = Path("./data/growthrate/growth_rate.csv")
+df_bycell = read_results(folder_i,subfolders,(px_x,px_y,px_z),path_rate=path_rate)
+
 df_bycell.set_index(["folder","condition","field","idx-cell"],inplace=True)
 idx2learn = df_bycell.loc[df_bycell["organelle"].eq("ER")].index
 df2learn = pd.DataFrame(index=idx2learn)
+col_x = []
 for stat in ["mean","count"]:
     for organelle in organelles:
-        df2learn[f"{stat}-{organelle}"] = df_bycell.loc[df_bycell["organelle"].eq(organelle),stat]
+        col = f"{stat}-{organelle}"
+        df2learn[col] = df_bycell.loc[df_bycell["organelle"].eq(organelle),stat]
+        col_x.append(col)
+
 df2learn["cell-volume"] = df_bycell.loc[df_bycell["organelle"].eq("ER"),"cell-volume"]
+# col_x.append("cell-volume")
 
-x_data = df2learn.to_numpy()
+data_x = df2learn[col_x].to_numpy()
+data_y = df2learn["cell-volume"].to_numpy().reshape((-1,1))
+data_x = torch.Tensor(data_x)
+data_y = torch.Tensor(data_y)
+# data_x.to(dev)
+# data_y.to(dev)
 
-train_dataset = TensorDataset(x_train, y_train)
-valid_dataset = TensorDataset(x_valid, y_valid)
-train_dataloader, valid_dataloader = get_data(train_dataset, valid_dataset, batch_size)
+dataset_all = TensorDataset(data_x,data_y)
+len_all = len(dataset_all)
+len_train = int(len_all*training_ratio)
+dataset_train,dataset_valid = random_split(
+    dataset_all,
+    lengths=[len_train,len_all-len_train]
+)
+train_dataloader, valid_dataloader = get_data(dataset_train,dataset_valid,batch_size)
 
 # model
-model = OrganelleRegressor(n_input=6)
-model.to(dev)
+model = CellSizePredictor(n_input=6)
+# model.to(dev)
 loss_function = F.cross_entropy if training_type=="classify" else F.mse_loss
-optimizer = optim.SGD(model.parameters(), lr=learning_rate , momentum=0.9)
+optimizer = optim.SGD(model.parameters(),lr=learning_rate,momentum=0.9)
 
 # training
-fit(epochs, model, loss_function, optimizer, train_dataloader, valid_dataloader)
+fit(epochs,model,loss_function,optimizer,train_dataloader,valid_dataloader)

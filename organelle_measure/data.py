@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
-def read_results(folder_i,subfolders,pixel_sizes):
+def read_results(folder_i,subfolders,pixel_sizes,path_rate=None):
     px_x,px_y,px_z = pixel_sizes
 
     organelles = [
@@ -74,11 +74,6 @@ def read_results(folder_i,subfolders,pixel_sizes):
     df_cell_all.loc[:,"effective-volume"] = (px_x*px_y)*np.sqrt(px_x*px_y)*(2.)*df_cell_all.loc[:,"area"]*np.sqrt(df_cell_all.loc[:,"area"])/np.sqrt(np.pi) 
     pivot_cell_bycell = df_cell_all.set_index(["folder","condition","field","idx-cell"])
 
-    # # (DEPRECATED) data (in unit of pixels)
-    # pivot_orga_bycell_mean = df_orga_all.loc[:,["folder","condition","field","organelle","idx-cell","volume-pixel"]].groupby(["folder","condition","field","idx-cell","organelle"]).mean()["volume-pixel"]
-    # pivot_orga_bycell_nums = df_orga_all.loc[:,["folder","condition","field","organelle","idx-cell","volume-pixel"]].groupby(["folder","condition","field","idx-cell","organelle"]).count()["volume-pixel"]
-    # pivot_orga_bycell_totl = df_orga_all.loc[:,["folder","condition","field","organelle","idx-cell","volume-pixel"]].groupby(["folder","condition","field","idx-cell","organelle"]).sum()["volume-pixel"]
-
     # data (in unit of microns)
     df_orga_all["volume-micron"] = np.empty_like(df_orga_all.index)
     df_orga_all.loc[df_orga_all["organelle"].eq("vacuole"),"volume-micron"] = (px_x*px_y)*np.sqrt(px_x*px_y)*(2.)*df_orga_all.loc[df_orga_all["organelle"].eq("vacuole"),"volume-pixel"]*np.sqrt(df_orga_all.loc[df_orga_all["organelle"].eq("vacuole"),"volume-pixel"])/np.sqrt(np.pi) 
@@ -115,6 +110,14 @@ def read_results(folder_i,subfolders,pixel_sizes):
     pivot_bycell.loc[pivot_bycell['organelle'].eq("non-organelle"),"total-fraction"] = 1 - df_none["total-fraction"]
 
     df_bycell = pivot_bycell.reset_index()
+
+    if path_rate is not None:
+        df_rates = pd.read_csv(str(path_rate))
+        df_rates.rename(columns={"experiment":"folder"},inplace=True)
+        df_bycell.set_index(["folder","condition"],inplace=True)
+        df_rates.set_index(["folder","condition"],inplace=True)
+        df_bycell.loc[:,"growth_rate"] = df_rates["growth_rate"]
+        df_bycell.reset_index(inplace=True)
 
     return df_bycell
 
