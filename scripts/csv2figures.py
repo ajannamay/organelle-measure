@@ -148,10 +148,10 @@ df_bycell = read_results(folder_i,subfolders,(px_x,px_y,px_z))
 # DATAFRAME FOR CORRELATION COEFFICIENT
 for folder in subfolders:
     pv_bycell = df_bycell[df_bycell['folder'].eq(folder)].set_index(['condition','field','idx-cell'])
-    df_corrcoef = pd.DataFrame(index=pivot_cell_bycell.loc[folder,:].index)
-    df_corrcoef.loc[:,'effective-length'] = np.sqrt(pivot_cell_bycell.loc[folder,'area']/np.pi)
-    df_corrcoef.loc[:,'cell-area'] = pivot_cell_bycell.loc[folder,'area']
-    df_corrcoef.loc[:,'cell-volume'] = pivot_cell_bycell.loc[folder,'effective-volume']
+    df_corrcoef = pd.DataFrame(index=pv_bycell.loc[pv_bycell["organelle"].eq("ER")].index)
+    df_corrcoef.loc[:,'effective-length'] = np.sqrt(pv_bycell.loc[pv_bycell["organelle"].eq("ER"),'cell-area']/np.pi)
+    df_corrcoef.loc[:,'cell-area'] = pv_bycell.loc[pv_bycell["organelle"].eq("ER"),'cell-area']
+    df_corrcoef.loc[:,'cell-volume'] = pv_bycell.loc[pv_bycell["organelle"].eq("ER"),'cell-volume']
     properties = []
     for orga in [*organelles,"non-organelle"]:
         for prop in ['mean','count','total','total-fraction']:
