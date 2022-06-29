@@ -17,14 +17,6 @@ dev = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 writer = SummaryWriter('data/tensorboard/draft')
 
 
-# Data
-def get_data(train_ds, valid_ds, bs):
-    return (
-        DataLoader(train_ds, batch_size=bs, shuffle=True),
-        DataLoader(valid_ds, batch_size=bs * 2),
-    )
-
-
 # Model
 def quadratic_form(vec,matrix):
     return vec @ matrix @ vec
@@ -100,36 +92,62 @@ def loss_batch(model, loss_func, xb, yb, opt=None):
 
     return loss.item(), len(xb)
 
-# def accuracy_classify(out,yb):
-#     predictions = torch.argmax(out,axis=1)
-#     targets = torch.argmax(out,axis=1)
-#     return (predictions==targets).float()/predictions.shape[0]
+# apply training for one epoch
+def train(model, loader, optimizer, loss_function,
+          epoch, log_interval=50, tb_logger=None):
+    model.train()
 
-def fit(epochs, model, loss_func, opt, train_dl, valid_dl):
-    for epoch in range(epochs):
-        model.train()
-        for xb, yb in train_dl:
-            loss_train,_  = loss_batch(model, loss_func, xb, yb, opt)
-            writer.add_scalar(tag="loss in a training batch",scalar_value=loss_train)
-            print(f"training batch loss={loss_train}")
+    for batch_id, (x, y) in enumerate(loader):
+        x, y = x.to(dev), y.to(dev)
+      
+        optimizer.zero_grad()
+        prediction = model(x)
+        loss = loss_function(prediction, y)
+        loss.backward()
+        optimizer.step()
+        
+        # log to console
+        if batch_id % log_interval == 0:
+            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                  epoch, batch_id * len(x),
+                  len(loader.dataset),
+                  100. * batch_id / len(loader), loss.item()))
+        if tb_logger is not None:
+            step = epoch * len(loader) + batch_id
+            tb_logger.add_scalar(tag='train_loss', scalar_value=loss.item(), global_step=step)
 
-        model.eval()
-        with torch.no_grad():
-            losses, nums = zip(
-                *[loss_batch(model, loss_func, xb, yb) for xb, yb in valid_dl]
-            )
-        val_loss = np.sum(np.multiply(losses, nums)) / np.sum(nums)
-        writer.add_scalar(tag="loss in a validation batch",scalar_value=val_loss)
+def validate(model, loader, loss_function, metric, step=None, tb_logger=None):
+    model.eval()
 
-        print(f"{epoch=}", f"{val_loss=}")
-    return None
-
+    val_loss = 0
+    val_metric = 0
+    
+    with torch.no_grad():
+        for x, y in loader:
+            x, y = x.to(dev), y.to(dev)
+            prediction = model(x)
+            val_loss += loss_function(prediction, y).item()
+            val_metric += metric(prediction, y).item()
+    
+    val_loss /= len(loader)
+    val_metric /= len(loader)
+    
+    if tb_logger is not None:
+        assert step is not None, "Need to know the current step to log validation results"
+        tb_logger.add_scalar(tag='val_loss', scalar_value=val_loss, global_step=step)
+        tb_logger.add_scalar(tag='val_metric', scalar_value=val_metric, global_step=step)
+        # we always log the last validation images
+        tb_logger.add_images(tag='val_input', img_tensor=x.to('cpu'), global_step=step)
+        tb_logger.add_images(tag='val_target', img_tensor=y.to('cpu'), global_step=step)
+        tb_logger.add_images(tag='val_prediction', img_tensor=prediction.to('cpu'), global_step=step)
+        
+    print('\nValidate: Average loss: {:.4f}, Average Metric: {:.4f}\n'.format(val_loss, val_metric))
 
 # def __main__():
 
 # hyperparameters
 learning_rate = 0.1
-epochs = 500
+epochs = 50
 batch_size = 256
 training_ratio = 0.80
 training_type = "regress"
@@ -186,13 +204,20 @@ dataset_train,dataset_valid = random_split(
     dataset_all,
     lengths=[len_train,len_all-len_train]
 )
-train_dataloader, valid_dataloader = get_data(dataset_train,dataset_valid,batch_size)
+train_dataloader = DataLoader(dataset_train,batch_size=batch_size,shuffle=True)
+valid_dataloader = DataLoader(dataset_valid,batch_size=batch_size*2)
 
 # model
 model = CellSizePredictor(n_input=6)
-# model.to(dev)
+model.to(dev)
 loss_function = F.cross_entropy if training_type=="classify" else F.mse_loss
 optimizer = optim.SGD(model.parameters(),lr=learning_rate,momentum=0.9)
 
-# training
-fit(epochs,model,loss_function,optimizer,train_dataloader,valid_dataloader)
+for epoch in range(epochs):
+    # train
+    train(model,train_dataloader,optimizer, loss_function,
+          epoch=epoch, log_interval=5, tb_logger=writer)
+    step = epoch * len(train_dataloader.dataset)
+    # validate
+    validate(model, valid_dataloader, loss_function, metric=loss_function,
+             step=step, tb_logger=writer)
