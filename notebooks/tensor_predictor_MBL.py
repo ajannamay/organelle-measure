@@ -210,9 +210,9 @@ optimizer = optim.SGD(model.parameters(),lr=learning_rate,momentum=0.5)
 
 for epoch in range(epochs):
     # train
-    train(model,train_dataloader,optimizer, loss_function,
-          epoch=epoch, log_interval=5, tb_logger=writer)
+    train(model,train_dataloader,optimizer,loss_function,
+          epoch=epoch,log_interval=5,tb_logger=writer)
     step = epoch * len(train_dataloader.dataset)
     # validate
-    validate(model, valid_dataloader, loss_function, metric=loss_function,
+    validate(model,valid_dataloader,loss_function, metric=loss_function,
              step=step, tb_logger=writer)
