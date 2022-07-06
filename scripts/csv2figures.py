@@ -38,7 +38,8 @@ folder_o = Path("./data/figures")
 folder_rate = Path("./data/growthrate")
 folder_correlation = Path("./data/correlation")
 folder_pca_data = Path("./data/pca_data")
-folder_pca_proj = Path("./data/pca_projection")
+folder_pca_proj_extremes = Path("./data/pca_projection_extremes")
+folder_pca_proj_all = Path("./data/pca_projection_all")
 folder_pca_compare = Path("./data/pca_compare")
 
 # READ FILES
@@ -70,18 +71,18 @@ for folder in subfolders:
             y=['condition','effective-length','cell-area','cell-volume',*properties],
             color_continuous_scale = "RdBu_r",range_color=[-1,1]
         )
-    fig.write_html(f"{folder_correlation}/corrcoef-number_{folder}.html")
+    fig.write_html(f"{folder_correlation}/corrcoef_{folder}.html")
 
-    # for condi in df_corrcoef["condition"].unique():
-    #     np_corrcoef = df_corrcoef.loc[df_corrcoef['condition']==condi,['effective-length','cell-area','cell-volume',*properties]].to_numpy()
-    #     corrcoef = np.corrcoef(np_corrcoef,rowvar=False)
-    #     fig = px.imshow(
-    #             corrcoef,
-    #             x=['effective-length','cell-area','cell-volume',*properties],
-    #             y=['effective-length','cell-area','cell-volume',*properties],
-    #             color_continuous_scale="RdBu_r",range_color=[-1,1]
-    #         )
-    #     fig.write_html(f"{folder_correlation}/corrcoef_{folder}_{str(condi).replace('.','-')}.html")    
+    for condi in df_corrcoef["condition"].unique():
+        np_corrcoef = df_corrcoef.loc[df_corrcoef['condition']==condi,['effective-length','cell-area','cell-volume',*properties]].to_numpy()
+        corrcoef = np.corrcoef(np_corrcoef,rowvar=False)
+        fig = px.imshow(
+                corrcoef,
+                x=['effective-length','cell-area','cell-volume',*properties],
+                y=['effective-length','cell-area','cell-volume',*properties],
+                color_continuous_scale="RdBu_r",range_color=[-1,1]
+            )
+        fig.write_html(f"{folder_correlation}/conditions/corrcoef_{folder}_{str(condi).replace('.','-')}.html")    
 
     # # Pairwise relation atlas
     # fig_pair = sns.PairGrid(df_corrcoef,hue="condition",vars=['effective-length','cell-area','cell-volume',*properties],height=3.0)
@@ -243,19 +244,6 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
     
     df_pca.reset_index(inplace=True)
 
-    np_pca = df_pca[columns].to_numpy()
-    pca = PCA(n_components=num_pc)
-    pca.fit(np_pca)
-    pca_components = np.array([comp if comp[np.argmax(np.abs(comp))]>0 else -comp for comp in pca.components_])
-    np.savetxt(f"{folder_pca_data}/pca-components_{folder}_{name}.txt",pca_components)
-    
-    fig_components = px.imshow(
-        pca_components,
-        x=columns, y=[f"PC{i}" for i in range(num_pc)],
-        color_continuous_scale="RdBu_r", color_continuous_midpoint=0
-    )
-    fig_components.write_html(f"{folder_pca_data}/pca_components_{folder}_{name}.html")
-
 
     # Find the the direction of the condition change:
     df_centroid = df_pca.groupby("condition")[columns].mean()
@@ -270,20 +258,39 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
     vec_centroid = vec_centroid_ended - vec_centroid_start
     vec_centroid = vec_centroid/np.linalg.norm(vec_centroid)
 
-    cosine_pca = np.dot(pca_components,vec_centroid)
-    cosine_pca = np.abs(cosine_pca)
+    # Get Principal Components (PCs)
+    np_pca = df_pca[columns].to_numpy()
+    pca = PCA(n_components=num_pc)
+    pca.fit(np_pca)
+    pca_components = pca.components_
 
+    # Calculate cos<condition,PCs>, and realign the PCs
+    cosine_pca = np.dot(pca_components,vec_centroid)
+    for c in range(len(cosine_pca)):
+        if cosine_pca[c] < 0:
+            pca_components[c] = -pca_components[c]
+    cosine_pca = np.abs(cosine_pca)
+    # save and plot PCs without sorting.
+    np.savetxt(f"{folder_pca_data}/pca-components_{folder}_{name}.txt",pca_components)    
+    fig_components = px.imshow(
+        pca_components,
+        x=columns, y=[f"PC{i}" for i in range(num_pc)],
+        color_continuous_scale="RdBu_r", color_continuous_midpoint=0
+    )
+    fig_components.write_html(f"{folder_pca_data}/pca_components_{folder}_{name}.html")
+
+    # Sort PCs according to the cosine
     arg_cosine = np.argsort(cosine_pca)[::-1]
     pca_components_sorted = pca_components[arg_cosine]
+    # save and plot the PCs with sorting
     np.savetxt(f"{folder_pca_compare}/condition-sorted-pca-components_{folder}_{name}.txt",pca_components_sorted)
-
     fig_components_sorted = px.imshow(
         pca_components_sorted,
         x=columns, y=[f"PC{i}" for i in arg_cosine],
         color_continuous_scale="RdBu_r", color_continuous_midpoint=0
     )
     fig_components_sorted.write_html(f"{folder_pca_compare}/condition-sorted-pca_components_{folder}_{name}.html")
-    
+    # plot the cosine 
     plt.figure()
     plt.barh(np.arange(num_pc),cosine_pca[arg_cosine[::-1]],align='center')
     plt.yticks(np.arange(num_pc),[f"PC{i}" for i in arg_cosine[::-1]])
@@ -292,21 +299,20 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
     plt.savefig(f"{folder_pca_compare}/condition-sorted-cosine_{folder}_{name}.png")
 
 
-    # draw projections onto the PCs
+    # Draw projections onto the PCs
     for i_pc in range(len(pca_components)):
         base = pca_components[i_pc]
         df_pca[f"proj{i_pc}"] = df_pca.apply(lambda x:np.dot(base,x.loc[columns]),axis=1)
     
     pc2proj = arg_cosine[:3]
-    if groups is not None:
-        df_pca = df_pca.loc[df_pca["condition"].isin(groups)]
 
+    df_pca_extremes = df_pca.loc[df_pca["condition"].isin(groups)]
     figproj = plt.figure(figsize=(10,8))
     ax = figproj.add_subplot(projection="3d")
-    for condi in pd.unique(df_pca["condition"]):
-        pc_x = df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[0]}"],
-        pc_y = df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[1]}"],
-        pc_z = df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[2]}"],
+    for condi in pd.unique(df_pca_extremes["condition"]):
+        pc_x = df_pca_extremes.loc[df_pca_extremes["condition"].eq(condi),f"proj{pc2proj[0]}"],
+        pc_y = df_pca_extremes.loc[df_pca_extremes["condition"].eq(condi),f"proj{pc2proj[1]}"],
+        pc_z = df_pca_extremes.loc[df_pca_extremes["condition"].eq(condi),f"proj{pc2proj[2]}"],
         ax.scatter(
             pc_x, pc_y, pc_z,
             alpha=0.2,label=f"{condi}"
@@ -320,80 +326,68 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
     ax.xaxis.pane.fill = False
     ax.yaxis.pane.fill = False
     ax.zaxis.pane.fill = False
-    ax.set_xlim(*(np.percentile(df_pca[f"proj{pc2proj[0]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
-    ax.set_ylim(*(np.percentile(df_pca[f"proj{pc2proj[1]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
-    ax.set_zlim(*(np.percentile(df_pca[f"proj{pc2proj[2]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
+    ax.set_xlim(*(np.percentile(df_pca_extremes[f"proj{pc2proj[0]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
+    ax.set_ylim(*(np.percentile(df_pca_extremes[f"proj{pc2proj[1]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
+    ax.set_zlim(*(np.percentile(df_pca_extremes[f"proj{pc2proj[2]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
     ax.legend(loc=(1.04,0.5))
-    figproj.savefig(f"{folder_pca_proj}/pca_projection3d_{folder}_{name}_pc{''.join([str(p) for p in pc2proj])}.png")
+    figproj.savefig(f"{folder_pca_proj_extremes}/pca_projection3d_{folder}_{name}_pc{''.join([str(p) for p in pc2proj])}.png")
     sns.set_style("whitegrid")
-    plt.figure()
-    sns.scatterplot(
-        data=df_pca,
-        x=f"proj{pc2proj[0]}",y=f"proj{pc2proj[1]}",
-        hue="condition",palette="tab10",alpha=0.5
-    )
-    plt.savefig(f"{folder_pca_proj}/pca_projection2d_{folder}_{name}_pc{pc2proj[0]}{pc2proj[1]}.png")
-    plt.figure()
-    sns.scatterplot(
-        data=df_pca,
-        x=f"proj{pc2proj[0]}",y=f"proj{pc2proj[2]}",
-        hue="condition",palette="tab10",alpha=0.5
-    )
-    plt.savefig(f"{folder_pca_proj}/pca_projection2d_{folder}_{name}_pc{pc2proj[0]}{pc2proj[2]}.png")
-    plt.figure()
-    sns.scatterplot(
-        data=df_pca,
-        x=f"proj{pc2proj[1]}",y=f"proj{pc2proj[2]}",
-        hue="condition",palette="tab10",alpha=0.5
-    )
-    plt.savefig(f"{folder_pca_proj}/pca_projection2d_{folder}_{name}_pc{pc2proj[1]}{pc2proj[2]}.png")
+    # 2d projections
+    for first,second in ((0,1),(0,2),(1,2)):
+        plt.figure()
+        sns.scatterplot(
+            data=df_pca_extremes,
+            x=f"proj{pc2proj[first]}",y=f"proj{pc2proj[second]}",
+            hue="condition",palette="tab10",alpha=0.5
+        )
+        plt.savefig(f"{folder_pca_proj_extremes}/pca_projection2d_{folder}_{name}_pc{pc2proj[first]}{pc2proj[second]}.png")
     
-    # # draw with Plotly:
-    # figproj = go.Figure()
-    # for condi in pd.unique(df_pca["condition"]):
-    #     figproj.add_trace(
-    #         go.Scatter3d(
-    #             x=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[0]}"],
-    #             y=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[1]}"],
-    #             z=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[2]}"],
-    #             name=condi,
-    #             mode="markers",
-    #             marker=dict(
-    #                         size=2,
-    #                         # color=figcolors[j],
-    #                         opacity=0.8
-    #                    )   
-    #         )
-    #     )
-    # figproj.update_layout(
-    #     scene=dict(
-    #         xaxis=dict(
-    #             title=f"proj{pc2proj[0]}",
-    #             backgroundcolor='rgba(0,0,0,0)',
-    #             gridcolor='grey',
-    #             showline = True,
-    #             zeroline=True,
-    #             zerolinecolor='black'
-    #         ),
-    #         yaxis=dict(
-    #             title=f"proj{pc2proj[1]}",
-    #             backgroundcolor='rgba(0,0,0,0)',
-    #             gridcolor='grey',
-    #             showline=True,
-    #             zeroline=True,
-    #             zerolinecolor='black'
-    #         ),
-    #         zaxis=dict(
-    #             title=f"proj{pc2proj[2]}",
-    #             backgroundcolor='rgba(0,0,0,0)',
-    #             gridcolor='grey',
-    #             showline = True,
-    #             zeroline=True,
-    #             zerolinecolor='black'
-    #         )
-    #     )
-    # )
-    # figproj.write_html(f"{folder_pca_proj}/pca_projection3d_{folder}_{name}_pc{''.join([str(p) for p in pc2proj])}.html")
+    # draw with Plotly:
+    figproj = go.Figure()
+    for condi in pd.unique(df_pca["condition"]):
+        figproj.add_trace(
+            go.Scatter3d(
+                x=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[0]}"],
+                y=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[1]}"],
+                z=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[2]}"],
+                name=condi,
+                mode="markers",
+                marker=dict(
+                            size=2,
+                            # color=figcolors[j],
+                            opacity=0.8
+                       )   
+            )
+        )
+    figproj.update_layout(
+        scene=dict(
+            xaxis=dict(
+                title=f"proj{pc2proj[0]}",
+                backgroundcolor='rgba(0,0,0,0)',
+                gridcolor='grey',
+                showline = True,
+                zeroline=True,
+                zerolinecolor='black'
+            ),
+            yaxis=dict(
+                title=f"proj{pc2proj[1]}",
+                backgroundcolor='rgba(0,0,0,0)',
+                gridcolor='grey',
+                showline=True,
+                zeroline=True,
+                zerolinecolor='black'
+            ),
+            zaxis=dict(
+                title=f"proj{pc2proj[2]}",
+                backgroundcolor='rgba(0,0,0,0)',
+                gridcolor='grey',
+                showline = True,
+                zeroline=True,
+                zerolinecolor='black'
+            )
+        )
+    )
+    figproj.write_html(f"{folder_pca_proj_all}/pca_projection3d_{folder}_{name}_pc{''.join([str(p) for p in pc2proj])}.html")
 
     return None
 
