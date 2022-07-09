@@ -142,11 +142,12 @@ def validate(model, loader, loss_function, metric, step=None, tb_logger=None):
 
 # hyperparameters
 learning_rate = 10**(-15)
-epochs = 50
+epochs = 500
 batch_size = 256
 training_ratio = 0.80
 training_type = "regress"
 # training_type = "classify"
+path_checkpoints = Path("data/tensormodel/")
 
 # data
 px_x,px_y,px_z = 0.41,0.41,0.20
@@ -189,8 +190,6 @@ data_x = df2learn[col_x].to_numpy()
 data_y = df2learn["cell-volume"].to_numpy().reshape((-1,1))
 data_x = torch.Tensor(data_x)
 data_y = torch.Tensor(data_y)
-# data_x.to(dev)
-# data_y.to(dev)
 
 dataset_all = TensorDataset(data_x,data_y)
 len_all   = len(dataset_all)
@@ -210,9 +209,23 @@ optimizer = optim.SGD(model.parameters(),lr=learning_rate,momentum=0.5)
 
 for epoch in range(epochs):
     # train
-    train(model,train_dataloader,optimizer,loss_function,
-          epoch=epoch,log_interval=5,tb_logger=writer)
+    loss = train(
+                 model,train_dataloader,optimizer,loss_function,
+                 epoch=epoch,log_interval=5,tb_logger=writer)
     step = epoch * len(train_dataloader.dataset)
     # validate
-    validate(model,valid_dataloader,loss_function, metric=loss_function,
-             step=step, tb_logger=writer)
+    loss_val = validate(
+                        model,valid_dataloader,
+                        loss_function, metric=loss_function,
+                        step=step, tb_logger=writer)
+    if epoch % 10 == 0:
+        torch.save(
+            {
+                "epoch": epoch,
+                "model_state_dict": model.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "loss": loss
+            },
+            str(path_checkpoints/f"CellSizePredictor_epoch-{epoch}.pth")
+        )
+    
