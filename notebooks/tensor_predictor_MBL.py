@@ -81,21 +81,11 @@ class OrganelleClassifier(nn.Module):
 
 # Pipeline
 
-def loss_batch(model, loss_func, xb, yb, opt=None):
-    loss = loss_func(model(xb), yb)
-
-    if opt is not None:
-        loss.backward()
-        opt.step()
-        opt.zero_grad()
-
-    return loss.item(), len(xb)
-
 # apply training for one epoch
 def train(model, loader, optimizer, loss_function,
           epoch, log_interval=50, tb_logger=None):
+    loss_train = 0
     model.train()
-
     for batch_id, (x, y) in enumerate(loader):
         x, y = x.to(dev), y.to(dev)
       
@@ -108,12 +98,14 @@ def train(model, loader, optimizer, loss_function,
         # log to console
         if batch_id % log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                  epoch, batch_id * len(x),
-                  len(loader.dataset),
+                  epoch, 
+                  batch_id * len(x), len(loader.dataset),
                   100. * batch_id / len(loader), loss.item()))
         if tb_logger is not None:
             step = epoch * len(loader) + batch_id
             tb_logger.add_scalar(tag='train_loss', scalar_value=loss.item(), global_step=step)
+        loss_train += loss.item()
+    return loss_train/len(loader)
 
 def validate(model, loader, loss_function, metric, step=None, tb_logger=None):
     model.eval()
@@ -137,6 +129,7 @@ def validate(model, loader, loss_function, metric, step=None, tb_logger=None):
         tb_logger.add_scalar(tag='val_metric', scalar_value=val_metric, global_step=step)
         
     print('\nValidate: Average loss: {:.4f}, Average Metric: {:.4f}\n'.format(val_loss, val_metric))
+    return val_loss/len(loader), val_metric/len(loader)
 
 # def __main__():
 
@@ -198,8 +191,8 @@ dataset_train,dataset_valid = random_split(
     dataset_all,
     lengths=[len_train,len_all-len_train]
 )
-train_dataloader = DataLoader(dataset_train,batch_size=batch_size,shuffle=True)
-valid_dataloader = DataLoader(dataset_valid,batch_size=batch_size*2)
+dataloader_train = DataLoader(dataset_train,batch_size=batch_size,shuffle=True)
+dataloader_valid = DataLoader(dataset_valid,batch_size=batch_size*2)
 
 # model
 model = CellSizePredictor(n_input=6)
@@ -207,24 +200,32 @@ model.to(dev)
 loss_function = F.cross_entropy if training_type=="classify" else F.mse_loss
 optimizer = optim.SGD(model.parameters(),lr=learning_rate,momentum=0.5)
 
+# # load trained model and optimizer
+# checkpoint  = torch.load(str(path_checkpoints/"CellSizePredictor_epoch-490.pth"))
+# model.load_state_dict(checkpoint["model_state_dict"])
+# optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+# epoch_offset = checkpoint["epoch"]
+
 for epoch in range(epochs):
     # train
-    loss = train(
-                 model,train_dataloader,optimizer,loss_function,
-                 epoch=epoch,log_interval=5,tb_logger=writer)
-    step = epoch * len(train_dataloader.dataset)
+    # epoch += epoch_offset
+    loss_train = train(
+                       model,dataloader_train,optimizer,loss_function,
+                       epoch=epoch,log_interval=5,tb_logger=writer)
+    step = epoch * len(dataloader_train.dataset)
     # validate
-    loss_val = validate(
-                        model,valid_dataloader,
-                        loss_function, metric=loss_function,
-                        step=step, tb_logger=writer)
+    loss_valid = validate(
+                          model,dataloader_valid,
+                          loss_function, metric=loss_function,
+                          step=step, tb_logger=writer)
     if epoch % 10 == 0:
         torch.save(
             {
                 "epoch": epoch,
                 "model_state_dict": model.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
-                "loss": loss
+                "loss_train": loss_train,
+                "loss_valid": loss_valid
             },
             str(path_checkpoints/f"CellSizePredictor_epoch-{epoch}.pth")
         )
