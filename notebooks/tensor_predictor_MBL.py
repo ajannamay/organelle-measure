@@ -177,7 +177,7 @@ for stat in ["mean","count"]:
         col_x.append(col)
 
 df2learn["cell-volume"] = df_bycell.loc[df_bycell["organelle"].eq("ER"),"cell-volume"]
-# col_x.append("cell-volume")
+col_x.append("cell-volume")
 
 data_x = df2learn[col_x].to_numpy()
 data_y = df2learn["cell-volume"].to_numpy().reshape((-1,1))
