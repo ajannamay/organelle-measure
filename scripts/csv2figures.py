@@ -396,12 +396,15 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
 #         for if_normalized in [True,False]:
 #             make_pca_plots(property,has_volume=has_cell,is_normalized=if_normalized)
 
+# direction in which the growth rate grows.
 extremes = {
-    "EYrainbow_glucose_largerBF":    [0.,100.],
-    "EYrainbow_leucine_large":       [0.,100.],
-    "EYrainbowWhi5Up_betaEstrodiol": [10.,0.],
-    "EYrainbow_rapamycin_1stTry":    [1000.,0.],
-    "EYrainbow_1nmpp1_1st":          [3000.,0.]
+    "EYrainbow_glucose":                    [0.,100.],
+    "EYrainbow_glucose_largerBF":           [0.,100.],
+    "EYrainbow_leucine_large":              [0.,100.],
+    "EYrainbowWhi5Up_betaEstrodiol":        [10.,0.],
+    "EYrainbow_rapamycin_1stTry":           [1000.,0.],
+    "EYrainbow_rapamycin_CheckBistability": [300.,0.],
+    "EYrainbow_1nmpp1_1st":                 [3000.,0.]
 }
 # dict_explained_variance_ratio = {}
 for folder in extremes.keys():
@@ -409,3 +412,10 @@ for folder in extremes.keys():
 # df_explained_variance_ratio = pd.DataFrame(dict_explained_variance_ratio)
 # df_explained_variance_ratio.to_csv(f"{folder_pca_data}/explained_variance_ratio_{name}.csv",index=False)
 
+df_trivial = pd.concat(
+    [
+        df_bycell.loc[df_bycell["folder"].eq(ex) & df_bycell["condition"].eq(extremes[ex][-1])] 
+        for ex in extremes.keys()
+    ],
+    ignore_index=True
+)
