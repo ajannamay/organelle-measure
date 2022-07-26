@@ -6,6 +6,9 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from pathlib import Path
+from sklearn import metrics
+from sklearn.decomposition import PCA
+from sklearn.linear_model import LinearRegression
 from organelle_measure.data import read_results
 
 
@@ -36,6 +39,7 @@ subfolders = [
 folder_i = Path("./data/results")
 folder_o = Path("./data/figures")
 folder_rate = Path("./data/growthrate")
+folder_mutualinfo = Path("./data/mutual_information")
 folder_correlation = Path("./data/correlation")
 folder_pca_data = Path("./data/pca_data")
 folder_pca_proj_extremes = Path("./data/pca_projection_extremes")
@@ -62,13 +66,43 @@ for folder in subfolders:
             df_corrcoef.loc[:,prop_new] = pv_bycell.loc[pv_bycell["organelle"]==orga,prop]
     df_corrcoef.reset_index(inplace=True)
 
+    # mutual information
+    columns = ['condition','effective-length','cell-area','cell-volume',*properties]
+    digitized = {}
+    for column in columns:
+        digitized[column] = np.digitize(
+            df_corrcoef[column],
+            bins=np.histogram(df_corrcoef[column],bins=100)[1]
+        )
+    num_col = len(columns)
+    mx_mutualinfo = np.zeros((num_col,num_col))
+    mx_miadjusted = np.zeros((num_col,num_col))
+    mx_normalzied = np.zeros((num_col,num_col))
+    for i,column0 in enumerate(columns):
+        mx_mutualinfo[i,i] = metrics.mutual_info_score(digitized[column0],digitized[column0])
+        mx_miadjusted[i,i] = 1.0
+        mx_normalzied[i,i] = 1.0
+        if (i+1)==num_col:
+            break
+        for j,column1 in enumerate(columns[i+1:]):
+            mx_mutualinfo[i,i+j+1] = metrics.mutual_info_score(digitized[column0],digitized[column1])
+            mx_miadjusted[i,i+j+1] = metrics.adjusted_mutual_info_score(digitized[column0],digitized[column1])
+            mx_normalzied[i,i+j+1] = metrics.normalized_mutual_info_score(digitized[column0],digitized[column1])
+    for matrix,mx_name in zip([mx_mutualinfo,mx_miadjusted,mx_normalzied],["mutual-info","adjusted-mutual-info","normalized-mutual-info"]):
+        fig = px.imshow(
+            matrix,
+            x=columns,y=columns,
+            color_continuous_scale="OrRd",range_color=[0,1]
+        )
+        fig.write_html(f"{folder_mutualinfo}/{mx_name}_{folder}.html")
+
+
     # Correlation coefficient
-    np_corrcoef = df_corrcoef.loc[:,['condition','effective-length','cell-area','cell-volume',*properties]].to_numpy()
+    np_corrcoef = df_corrcoef.loc[:,columns].to_numpy()
     corrcoef = np.corrcoef(np_corrcoef,rowvar=False)
     fig = px.imshow(
             corrcoef,
-            x=['condition','effective-length','cell-area','cell-volume',*properties],
-            y=['condition','effective-length','cell-area','cell-volume',*properties],
+            x=columns,y=columns,
             color_continuous_scale = "RdBu_r",range_color=[-1,1]
         )
     fig.write_html(f"{folder_correlation}/corrcoef_{folder}.html")
@@ -78,8 +112,7 @@ for folder in subfolders:
         corrcoef = np.corrcoef(np_corrcoef,rowvar=False)
         fig = px.imshow(
                 corrcoef,
-                x=['effective-length','cell-area','cell-volume',*properties],
-                y=['effective-length','cell-area','cell-volume',*properties],
+                x=columns,y=columns,
                 color_continuous_scale="RdBu_r",range_color=[-1,1]
             )
         fig.write_html(f"{folder_correlation}/conditions/corrcoef_{folder}_{str(condi).replace('.','-')}.html")    
@@ -215,9 +248,6 @@ for folder in subfolders:
             f"{folder_o}/organelle_mean_vs_condition_{folder}_{orga}.html"
         )
 
-
-from sklearn.decomposition import PCA
-from sklearn.linear_model import LinearRegression
 
 def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=False,non_organelle=False):
     name = f"{'all-conditions' if groups is None else 'extremes'}_{'has-cytoplasm' if non_organelle else 'no-cytoplasm'}_{'cell-volume' if has_volume else 'organelle-only'}_{property}_{'norm-mean-std' if is_normalized else 'raw'}"
