@@ -6,6 +6,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from pathlib import Path
+from scipy.special import rel_entr
 from sklearn import metrics
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LinearRegression
@@ -36,6 +37,17 @@ subfolders = [
     "EYrainbowWhi5Up_betaEstrodiol"
 ]
 
+# direction in which the growth rate grows.
+extremes = {
+    "EYrainbow_glucose":                    [0.,100.],
+    "EYrainbow_glucose_largerBF":           [0.,100.],
+    "EYrainbow_leucine_large":              [0.,100.],
+    "EYrainbowWhi5Up_betaEstrodiol":        [10.,0.],
+    "EYrainbow_rapamycin_1stTry":           [1000.,0.],
+    "EYrainbow_rapamycin_CheckBistability": [300.,0.],
+    "EYrainbow_1nmpp1_1st":                 [3000.,0.]
+}
+
 folder_i = Path("./data/results")
 folder_o = Path("./data/figures")
 folder_rate = Path("./data/growthrate")
@@ -50,7 +62,8 @@ folder_pca_compare = Path("./data/pca_compare")
 df_bycell = read_results(folder_i,subfolders,(px_x,px_y,px_z))
 
 # DATAFRAME FOR CORRELATION COEFFICIENT
-for folder in subfolders:
+# for folder in subfolders:
+for folder in extremes.keys():
     pv_bycell = df_bycell[df_bycell['folder'].eq(folder)].set_index(['condition','field','idx-cell'])
     df_corrcoef = pd.DataFrame(index=pv_bycell.loc[pv_bycell["organelle"].eq("ER")].index)
     df_corrcoef.loc[:,'effective-length'] = np.sqrt(pv_bycell.loc[pv_bycell["organelle"].eq("ER"),'cell-area']/np.pi)
@@ -65,6 +78,43 @@ for folder in subfolders:
             properties.append(prop_new)
             df_corrcoef.loc[:,prop_new] = pv_bycell.loc[pv_bycell["organelle"]==orga,prop]
     df_corrcoef.reset_index(inplace=True)
+
+    # Kullback–Leibler_divergence of different conditions
+    num_bin = 4
+    organelles_kl = [f"total-fraction-{orga}" for orga in organelles]
+    df_kldiverge = df_corrcoef[["condition",*organelles_kl]]
+    # get grids in 6 dimensional space
+    grids = np.array(list(map(
+                lambda x:np.percentile(
+                    df_kldiverge[x],
+                    q=np.arange(0,100,100/num_bin)
+                ),
+                organelles_kl
+            )))
+    probabilities = {}
+    for condi in np.sort(df_kldiverge["condition"].unique()):
+        counts = np.array(list(map(
+                    lambda x:np.digitize(
+                        df_kldiverge.loc[df_kldiverge["condition"].eq(condi),x[0]],
+                        x[1]
+                    ),
+                    zip(organelles_kl,grids)
+                  ))) - 1
+        indices = np.array(list(map(
+                        lambda x: sum([xi*(num_bin+1)**i for xi,i in enumerate(x)]),
+                        np.transpose(counts)
+                  )))
+        indices = np.bincount(indices)
+        probs = np.zeros((num_bin+1)**len(organelles))
+        probs[:len(indices)] = indices
+        probs += 10**(-20)
+        probs = probs/np.sum(probs)
+        probabilities[condi] = probs
+    normal = extremes[folder][-1]
+    divergence = {}
+    for condi in probabilities.keys():
+        divergence[condi] = np.sum(rel_entr(probabilities[condi],probabilities[normal]))
+    print(folder,":\n",divergence)
 
     # mutual information
     columns = ['condition','effective-length','cell-area','cell-volume',*properties]
@@ -426,16 +476,7 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
 #         for if_normalized in [True,False]:
 #             make_pca_plots(property,has_volume=has_cell,is_normalized=if_normalized)
 
-# direction in which the growth rate grows.
-extremes = {
-    "EYrainbow_glucose":                    [0.,100.],
-    "EYrainbow_glucose_largerBF":           [0.,100.],
-    "EYrainbow_leucine_large":              [0.,100.],
-    "EYrainbowWhi5Up_betaEstrodiol":        [10.,0.],
-    "EYrainbow_rapamycin_1stTry":           [1000.,0.],
-    "EYrainbow_rapamycin_CheckBistability": [300.,0.],
-    "EYrainbow_1nmpp1_1st":                 [3000.,0.]
-}
+
 # dict_explained_variance_ratio = {}
 for folder in extremes.keys():
     make_pca_plots(folder,"total-fraction",groups=extremes[folder],has_volume=True,is_normalized=True,non_organelle=False)
