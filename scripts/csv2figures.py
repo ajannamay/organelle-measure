@@ -62,27 +62,28 @@ folder_pca_compare = Path("./data/pca_compare")
 df_bycell = read_results(folder_i,subfolders,(px_x,px_y,px_z))
 
 # DATAFRAME FOR CORRELATION COEFFICIENT
-# for folder in subfolders:
-for folder in extremes.keys():
-    pv_bycell = df_bycell[df_bycell['folder'].eq(folder)].set_index(['condition','field','idx-cell'])
-    df_corrcoef = pd.DataFrame(index=pv_bycell.loc[pv_bycell["organelle"].eq("ER")].index)
-    df_corrcoef.loc[:,'effective-length'] = np.sqrt(pv_bycell.loc[pv_bycell["organelle"].eq("ER"),'cell-area']/np.pi)
-    df_corrcoef.loc[:,'cell-area'] = pv_bycell.loc[pv_bycell["organelle"].eq("ER"),'cell-area']
-    df_corrcoef.loc[:,'cell-volume'] = pv_bycell.loc[pv_bycell["organelle"].eq("ER"),'cell-volume']
-    properties = []
-    for orga in [*organelles,"non-organelle"]:
-        for prop in ['mean','count','total','total-fraction']:
-            if (orga in ["ER","vacuole","non-organelle"]) and (prop in ["count","mean"]):
-                continue
-            prop_new = f"{prop}-{orga}"
-            properties.append(prop_new)
-            df_corrcoef.loc[:,prop_new] = pv_bycell.loc[pv_bycell["organelle"]==orga,prop]
-    df_corrcoef.reset_index(inplace=True)
+pv_bycell = df_bycell.set_index(['folder','condition','field','idx-cell'])
+df_corrcoef = pd.DataFrame(index=pv_bycell.loc[pv_bycell["organelle"].eq("ER")].index)
+df_corrcoef.loc[:,'effective-length'] = np.sqrt(pv_bycell.loc[pv_bycell["organelle"].eq("ER"),'cell-area']/np.pi)
+df_corrcoef.loc[:,'cell-area'] = pv_bycell.loc[pv_bycell["organelle"].eq("ER"),'cell-area']
+df_corrcoef.loc[:,'cell-volume'] = pv_bycell.loc[pv_bycell["organelle"].eq("ER"),'cell-volume']
+properties = []
+for orga in [*organelles,"non-organelle"]:
+    for prop in ['mean','count','total','total-fraction']:
+        if (orga in ["ER","vacuole","non-organelle"]) and (prop in ["count","mean"]):
+            continue
+        prop_new = f"{prop}-{orga}"
+        properties.append(prop_new)
+        df_corrcoef.loc[:,prop_new] = pv_bycell.loc[pv_bycell["organelle"]==orga,prop]
+df_corrcoef.reset_index(inplace=True)
 
-    # Kullback–Leibler_divergence of different conditions
+
+# Kullback–Leibler_divergence of different conditions
+df_entropies = []
+for folder in extremes.keys():
     num_bin = 4
     organelles_kl = [f"total-fraction-{orga}" for orga in organelles]
-    df_kldiverge = df_corrcoef[["condition",*organelles_kl]]
+    df_kldiverge = df_corrcoef.loc[df_corrcoef["folder"].eq(folder),["condition",*organelles_kl]]
     # get grids in 6 dimensional space
     grids = np.array(list(map(
                 lambda x:np.percentile(
@@ -100,22 +101,71 @@ for folder in extremes.keys():
                     ),
                     zip(organelles_kl,grids)
                   ))) - 1
+        probs = np.zeros(tuple(num_bin for i in range(len(organelles_kl))))
+        for count in np.transpose(counts):
+            probs[tuple(count)] += 1.
+        probs += 10**(-20)
+        probs = probs/np.sum(probs)
+
+        marginals = np.array([
+            np.sum(
+                probs,
+                axis=tuple(
+                    np.delete(np.arange(len(organelles_kl)),i)
+                )
+            )
+            for i in range(len(organelles_kl))
+        ])
+        
+        dummy = np.zeros(tuple(num_bin for i in range(len(organelles_kl))))
+        for i0 in range(4):
+            for i1 in range(4):
+                for i2 in range(4):
+                    for i3 in range(4):
+                        for i4 in range(4):
+                            for i5 in range (4):
+                                dummy[(i0,i1,i2,i3,i4,i5)] = marginals[0,i0]*marginals[1,i1]*marginals[2,i2]*marginals[3,i3]*marginals[4,i4]*marginals[5,i5]
+
         indices = np.array(list(map(
                         lambda x: sum([xi*(num_bin+1)**i for xi,i in enumerate(x)]),
                         np.transpose(counts)
                   )))
         indices = np.bincount(indices)
-        probs = np.zeros((num_bin+1)**len(organelles))
+        probs = np.zeros((num_bin)**len(organelles))
         probs[:len(indices)] = indices
         probs += 10**(-20)
         probs = probs/np.sum(probs)
         probabilities[condi] = probs
     normal = extremes[folder][-1]
-    divergence = {}
+    divergence = []
+    entropy = []
     for condi in probabilities.keys():
-        divergence[condi] = np.sum(rel_entr(probabilities[condi],probabilities[normal]))
-    print(folder,":\n",divergence)
+        divergence.append(np.sum(rel_entr(probabilities[condi],probabilities[normal])))
+        entropy.append(
+            np.sum(
+                np.array(list(map(
+                    lambda x: 0 if x<10**(-19) else -x*np.log(x),
+                    probabilities[condi]
+                )))
+            )
+        )
+    df_entropies.append(pd.DataFrame({
+        "folder":     folder,
+        "condition": np.sort(df_kldiverge["condition"].unique()),
+        "entropy":    entropy,
+        "KL_divergence": divergence
+    }))
+df_entropies = pd.concat(df_entropies,ignore_index=True)
+for folder in df_entropies["folder"].unique():
+    plt.figure()
+    fig = sns.regplot(
+        data=df_entropies[df_entropies["folder"].eq(folder)],
+        x="conditions",y="KL_divergence",ci=None
+    )
+    plt.savefig(f"{folder_mutualinfo}/KL-divergence_{folder}.png")
+    plt.clf()
 
+for folder in subfolders:
     # mutual information
     columns = ['condition','effective-length','cell-area','cell-volume',*properties]
     digitized = {}
@@ -421,6 +471,7 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
             hue="condition",palette="tab10",alpha=0.5
         )
         plt.savefig(f"{folder_pca_proj_extremes}/pca_projection2d_{folder}_{name}_pc{pc2proj[first]}{pc2proj[second]}.png")
+        plt.clf()
     
     # draw with Plotly:
     figproj = go.Figure()
