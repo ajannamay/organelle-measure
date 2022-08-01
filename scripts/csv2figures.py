@@ -14,7 +14,7 @@ from organelle_measure.data import read_results
 
 
 # Global Variables
-
+sns.set_style("whitegrid")
 px_x,px_y,px_z = 0.41,0.41,0.20
 
 organelles = [
@@ -93,6 +93,7 @@ for folder in extremes.keys():
                 organelles_kl
             )))
     probabilities = {}
+    probs_dummy = {}
     for condi in np.sort(df_kldiverge["condition"].unique()):
         counts = np.array(list(map(
                     lambda x:np.digitize(
@@ -126,21 +127,33 @@ for folder in extremes.keys():
                             for i5 in range (4):
                                 dummy[(i0,i1,i2,i3,i4,i5)] = marginals[0,i0]*marginals[1,i1]*marginals[2,i2]*marginals[3,i3]*marginals[4,i4]*marginals[5,i5]
 
-        indices = np.array(list(map(
-                        lambda x: sum([xi*(num_bin+1)**i for xi,i in enumerate(x)]),
-                        np.transpose(counts)
-                  )))
-        indices = np.bincount(indices)
-        probs = np.zeros((num_bin)**len(organelles))
-        probs[:len(indices)] = indices
-        probs += 10**(-20)
-        probs = probs/np.sum(probs)
-        probabilities[condi] = probs
+        # indices = np.array(list(map(
+        #                 lambda x: sum([xi*(num_bin+1)**i for xi,i in enumerate(x)]),
+        #                 np.transpose(counts)
+        #           )))
+        # indices = np.bincount(indices)
+        # probs = np.zeros((num_bin)**len(organelles))
+        # probs[:len(indices)] = indices
+        # probs += 10**(-20)
+        # probs = probs/np.sum(probs)
+        
+        probabilities[condi] = probs.flatten()
+        probs_dummy[condi] = dummy.flatten()
+
     normal = extremes[folder][-1]
     divergence = []
-    entropy = []
+    dvgn_dummy = []
+    entropy    = []
+    entr_dummy = []
+    entropy_difference = []
+    entropy_diff_dummy = []
     for condi in probabilities.keys():
-        divergence.append(np.sum(rel_entr(probabilities[condi],probabilities[normal])))
+        divergence.append(
+            np.sum(rel_entr(probabilities[condi],probabilities[normal]))
+        )
+        dvgn_dummy.append(
+            np.sum(rel_entr(probs_dummy[condi],probabilities[normal]))
+        )
         entropy.append(
             np.sum(
                 np.array(list(map(
@@ -149,21 +162,121 @@ for folder in extremes.keys():
                 )))
             )
         )
-    df_entropies.append(pd.DataFrame({
+        entr_dummy.append(
+            np.sum(
+                np.array(list(map(
+                    lambda x: 0 if x<10**(-19) else -x*np.log(x),
+                    probs_dummy[condi]
+                )))
+            )
+        )
+    df_entropy = pd.DataFrame({
         "folder":     folder,
-        "condition": np.sort(df_kldiverge["condition"].unique()),
+        "condition":  np.sort(df_kldiverge["condition"].unique()),
         "entropy":    entropy,
-        "KL_divergence": divergence
-    }))
+        "KL_divergence": divergence,
+        "entropy_dummy": entr_dummy,
+        "KL_divergence_dummy": dvgn_dummy
+    })
+    df_entropy.reset_index(inplace=True)
+    df_entropies.append(df_entropy)
+    df_entropies[-1]["entropy_difference"] = df_entropies[-1]["entropy"] - df_entropies[-1].loc[df_entropies[-1]["condition"].eq(normal),"entropy"].values[0]
+    df_entropies[-1]["entropy_diff_dummy"] = df_entropies[-1]["entropy_dummy"] - df_entropies[-1].loc[df_entropies[-1]["condition"].eq(normal),"entropy_dummy"].values[0]
 df_entropies = pd.concat(df_entropies,ignore_index=True)
+
+# make plots about KL divergence and info entropy
 for folder in df_entropies["folder"].unique():
     plt.figure()
-    fig = sns.regplot(
+    g = sns.scatterplot(
         data=df_entropies[df_entropies["folder"].eq(folder)],
-        x="conditions",y="KL_divergence",ci=None
+        x="index",y="KL_divergence",ci=None
     )
+    g.set_xticks(df_entropies.loc[df_entropies["folder"].eq(folder),"index"])
+    g.set_xticklabels(df_entropies.loc[df_entropies["folder"].eq(folder),"condition"])
     plt.savefig(f"{folder_mutualinfo}/KL-divergence_{folder}.png")
     plt.clf()
+
+for folder in df_entropies["folder"].unique():
+    plt.figure()
+    plt.scatter(
+        x=df_entropies.loc[df_entropies["folder"].eq(folder),"index"],
+        y=df_entropies.loc[df_entropies["folder"].eq(folder),"KL_divergence"],
+        marker='x'
+    )
+    plt.scatter(
+        x=df_entropies.loc[df_entropies["folder"].eq(folder),"index"],
+        y=df_entropies.loc[df_entropies["folder"].eq(folder),"KL_divergence_dummy"],
+        marker='o'
+    )
+    plt.xticks(
+        df_entropies.loc[df_entropies["folder"].eq(folder),"index"],
+        df_entropies.loc[df_entropies["folder"].eq(folder),"condition"]
+    )
+    plt.xlabel("condition")
+    plt.ylabel("KL-divergence")
+    plt.savefig(f"{folder_mutualinfo}/KL-divergence_{folder}.png")
+    plt.clf()
+
+plt.figure()
+g = sns.scatterplot(
+    data=df_entropies,
+    x="growth_rate",y="entropy",hue="folder",marker="x"
+)
+sns.scatterplot(
+    data=df_entropies,
+    x="growth_rate",y="entropy_dummy",hue="folder",
+    marker="o",ax=g
+)
+plt.ylim(0,None)
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0)
+plt.savefig(f"{folder_mutualinfo}/entropy_growthrate.png")
+plt.clf()
+
+plt.figure()
+g = sns.scatterplot(
+    data=df_entropies,
+    x="growth_rate",y="KL_divergence",hue="folder",marker="x"
+)
+sns.scatterplot(
+    data=df_entropies,
+    x="growth_rate",y="KL_divergence_dummy",hue="folder",
+    marker="o",ax=g
+)
+plt.ylim(0,None)
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0)
+plt.savefig(f"{folder_mutualinfo}/klDivergence_growthrate.png")
+plt.clf()
+
+plt.figure()
+g = sns.scatterplot(
+    data=df_entropies,
+    x="KL_divergence",y="entropy",hue="folder",marker="x"
+)
+sns.scatterplot(
+    data=df_entropies,
+    x="KL_divergence_dummy",y="entropy_dummy",hue="folder",
+    marker="o",ax=g
+)
+plt.ylim(0,None)
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0)
+plt.savefig(f"{folder_mutualinfo}/entropy_klDivergence.png")
+plt.clf()
+
+plt.figure()
+g = sns.scatterplot(
+    data=df_entropies,
+    x="entropy",y="KL_divergence",hue="folder",marker="x"
+)
+sns.scatterplot(
+    data=df_entropies,
+    x="entropy_dummy",y="KL_divergence_dummy",hue="folder",
+    marker="o",ax=g
+)
+plt.ylim(0,None)
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0)
+plt.savefig(f"{folder_mutualinfo}/klDivergence_entropy.png")
+plt.clf()
+
 
 for folder in subfolders:
     # mutual information
@@ -461,7 +574,6 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
     ax.set_zlim(*(np.percentile(df_pca_extremes[f"proj{pc2proj[2]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
     ax.legend(loc=(1.04,0.5))
     figproj.savefig(f"{folder_pca_proj_extremes}/pca_projection3d_{folder}_{name}_pc{''.join([str(p) for p in pc2proj])}.png")
-    sns.set_style("whitegrid")
     # 2d projections
     for first,second in ((0,1),(0,2),(1,2)):
         plt.figure()
