@@ -95,7 +95,7 @@ for folder in extremes.keys():
     probabilities = {}
     probs_dummy = {}
     for condi in np.sort(df_kldiverge["condition"].unique()):
-        counts = np.array(list(map(
+        posits = np.array(list(map(
                     lambda x:np.digitize(
                         df_kldiverge.loc[df_kldiverge["condition"].eq(condi),x[0]],
                         x[1]
@@ -103,11 +103,33 @@ for folder in extremes.keys():
                     zip(organelles_kl,grids)
                   ))) - 1
         probs = np.zeros(tuple(num_bin for i in range(len(organelles_kl))))
-        for count in np.transpose(counts):
+        for count in np.transpose(posits):
             probs[tuple(count)] += 1.
         probs += 10**(-20)
         probs = probs/np.sum(probs)
 
+        # "corrected" code
+        indices_ = np.array(list(map(
+                        lambda x: sum([xi*(num_bin)**i for i,xi in enumerate(x)]),
+                        np.transpose(posits)
+                  )))
+        indices = np.bincount(indices_)
+        probs1 = np.zeros((num_bin)**len(organelles))
+        probs1[:len(indices)] = indices
+        probs1 += 10**(-20)
+        probs1 = probs1/np.sum(probs1)
+
+        # # "old" code, could be wrong
+        # indices = np.array(list(map(
+        #                 lambda x: sum([xi*(num_bin+1)**i for i,xi in enumerate(x)]),
+        #                 np.transpose(posits)
+        #           )))
+        # indices = np.bincount(indices)
+        # probs2 = np.zeros((num_bin)**len(organelles))
+        # probs2[:len(indices)] = indices
+        # probs2 += 10**(-20)
+        # probs2 = probs2/np.sum(probs2)
+        
         marginals = np.array([
             np.sum(
                 probs,
@@ -126,16 +148,6 @@ for folder in extremes.keys():
                         for i4 in range(4):
                             for i5 in range (4):
                                 dummy[(i0,i1,i2,i3,i4,i5)] = marginals[0,i0]*marginals[1,i1]*marginals[2,i2]*marginals[3,i3]*marginals[4,i4]*marginals[5,i5]
-
-        # indices = np.array(list(map(
-        #                 lambda x: sum([xi*(num_bin+1)**i for xi,i in enumerate(x)]),
-        #                 np.transpose(counts)
-        #           )))
-        # indices = np.bincount(indices)
-        # probs = np.zeros((num_bin)**len(organelles))
-        # probs[:len(indices)] = indices
-        # probs += 10**(-20)
-        # probs = probs/np.sum(probs)
         
         probabilities[condi] = probs.flatten()
         probs_dummy[condi] = dummy.flatten()
@@ -355,10 +367,12 @@ for folder in subfolders:
 pivot_bycondition = df_bycell.groupby(['folder','organelle','condition']).mean()[['mean','count','total','cell-area','cell-volume','total-fraction']]
 pivot_bycondition["cell_count"] = df_bycell[['folder','organelle','condition','mean']].groupby(['folder','organelle','condition']).count()
 df_bycondition = pivot_bycondition.reset_index()
+
 df_rates = pd.read_csv(str(folder_rate/"growth_rate.csv"))
 df_rates.rename(columns={"experiment":"folder"},inplace=True)
-df_bycondition.set_index(["folder","condition"],inplace=True)
 df_rates.set_index(["folder","condition"],inplace=True)
+
+df_bycondition.set_index(["folder","condition"],inplace=True)
 df_bycondition.loc[:,"growth_rate"] = df_rates["growth_rate"]
 df_bycondition.reset_index(inplace=True)
 fig = px.line(
@@ -461,7 +475,7 @@ for folder in subfolders:
             f"{folder_o}/organelle_mean_vs_condition_{folder}_{orga}.html"
         )
 
-
+# PCA 
 def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=False,non_organelle=False):
     name = f"{'all-conditions' if groups is None else 'extremes'}_{'has-cytoplasm' if non_organelle else 'no-cytoplasm'}_{'cell-volume' if has_volume else 'organelle-only'}_{property}_{'norm-mean-std' if is_normalized else 'raw'}"
         
@@ -653,3 +667,27 @@ df_trivial = pd.concat(
     ],
     ignore_index=True
 )
+
+
+experiments = {
+    "glucose":   "EYrainbow_glucose_largerBF",
+    "leucine":   "EYrainbow_leucine_large",
+    "Whi5Up":    "EYrainbowWhi5Up_betaEstrodiol",
+    "1-nm-pp1":  "EYrainbow_1nmpp1_1st",
+    "rapamycin": "EYrainbow_rapamycin_1stTry"
+}
+# find PCs in different experiments most similar to glucose PCs
+dict_pc = {}
+for expm in experiments.keys(): 
+    file_pc = next(folder_pca_data.glob(f"*{experiments[expm]}*organelle-only*.txt"))
+    dict_pc[experiments[expm]] = np.loadtxt(str(file_pc))
+dict_product = {}
+dict_ranking = {}
+for expm in experiments.keys(): 
+    for i in range(6):
+        product = np.dot(dict_pc[expm],dict_pc["glucose"][i])
+        indice_pc = np.argsort(np.abs(product))
+        dict_product[expm] = product
+        dict_ranking[expm] = [f"PC{i}" for i in indice_pc]
+# 
+
