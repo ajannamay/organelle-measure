@@ -679,14 +679,15 @@ experiments = {
     "1-nm-pp1":  "EYrainbow_1nmpp1_1st",
     "rapamycin": "EYrainbow_rapamycin_1stTry"
 }
+exp_names = list(experiments.keys())
 # find PCs in different experiments most similar to glucose PCs
 dict_pc = {}
-for expm in experiments.keys(): 
+for expm in exp_names: 
     file_pc = next(folder_pca_data.glob(f"*{experiments[expm]}*organelle-only*.txt"))
     dict_pc[expm] = np.loadtxt(str(file_pc))
 dict_product = {}
 dict_ranking = {}
-for expm in experiments.keys(): 
+for expm in exp_names: 
     list_product = []
     list_ranking = []
     for i in range(6):
@@ -696,8 +697,19 @@ for expm in experiments.keys():
         list_ranking.append(indice_pc)
     dict_product[expm] = list_product
     dict_ranking[expm] = [f"PC{r}" for r in list_ranking]
-# 
-exp_names = list(experiments.keys())
+glu2similar = pd.DataFrame(dict_product).to_numpy()
+glu2ranking = pd.DataFrame(dict_ranking).to_numpy()
+fig_glu2others = px.imshow(
+    glu2similar,
+    x=exp_names, y=None,
+    color_continuous_scale="RdBu_r"
+)
+fig_glu2others.update_traces(text=glu2ranking,texttemplate="%{text}")
+fig_glu2others.update_xaxes(side="top")
+fig_glu2others.write_html(f"{folder_o}/compare2glucose.html")
+
+
+# summary of experiments
 sq_summary = np.empty((len(exp_names),len(exp_names)))
 sq_summary[:] = np.nan
 for i0,expm0 in enumerate(exp_names):
@@ -706,4 +718,10 @@ for i0,expm0 in enumerate(exp_names):
         for s0 in range(6):
             for s1 in range(6):
                 sq_products[s0,s1] = np.dot(dict_pc[expm0][s0],dict_pc[expm1][s1])
-        sq_summary[i0,i0+i1] = np.mean(sq_products)
+        sq_summary[i0,i0+i1] = np.sum(sq_products)
+fig_summary = px.imshow(
+    sq_summary,
+    x=exp_names,y=exp_names,
+    color_continuous_scale="RdBu_r"
+)
+fig_summary.write_html(f"{folder_o}/summary.html")
