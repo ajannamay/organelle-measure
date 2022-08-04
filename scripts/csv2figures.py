@@ -588,7 +588,9 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
     ax.set_zlim(*(np.percentile(df_pca_extremes[f"proj{pc2proj[2]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
     ax.legend(loc=(1.04,0.5))
     figproj.savefig(f"{folder_pca_proj_extremes}/pca_projection3d_{folder}_{name}_pc{''.join([str(p) for p in pc2proj])}.png")
+    plt.close(figproj)
     # 2d projections
+    sns.set_style("whitegrid")
     for first,second in ((0,1),(0,2),(1,2)):
         plt.figure()
         sns.scatterplot(
@@ -657,6 +659,7 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
 # dict_explained_variance_ratio = {}
 for folder in extremes.keys():
     make_pca_plots(folder,"total-fraction",groups=extremes[folder],has_volume=True,is_normalized=True,non_organelle=False)
+    make_pca_plots(folder,"total-fraction",groups=extremes[folder],has_volume=False,is_normalized=True,non_organelle=False)
 # df_explained_variance_ratio = pd.DataFrame(dict_explained_variance_ratio)
 # df_explained_variance_ratio.to_csv(f"{folder_pca_data}/explained_variance_ratio_{name}.csv",index=False)
 
@@ -680,14 +683,27 @@ experiments = {
 dict_pc = {}
 for expm in experiments.keys(): 
     file_pc = next(folder_pca_data.glob(f"*{experiments[expm]}*organelle-only*.txt"))
-    dict_pc[experiments[expm]] = np.loadtxt(str(file_pc))
+    dict_pc[expm] = np.loadtxt(str(file_pc))
 dict_product = {}
 dict_ranking = {}
 for expm in experiments.keys(): 
+    list_product = []
+    list_ranking = []
     for i in range(6):
         product = np.dot(dict_pc[expm],dict_pc["glucose"][i])
-        indice_pc = np.argsort(np.abs(product))
-        dict_product[expm] = product
-        dict_ranking[expm] = [f"PC{i}" for i in indice_pc]
+        indice_pc = np.argmax(np.abs(product))
+        list_product.append(product[indice_pc])
+        list_ranking.append(indice_pc)
+    dict_product[expm] = list_product
+    dict_ranking[expm] = [f"PC{r}" for r in list_ranking]
 # 
-
+exp_names = list(experiments.keys())
+sq_summary = np.empty((len(exp_names),len(exp_names)))
+sq_summary[:] = np.nan
+for i0,expm0 in enumerate(exp_names):
+    for i1,expm1 in enumerate(exp_names[i0:]):
+        sq_products = np.zeros((6,6)) # hard-coded num of organelles
+        for s0 in range(6):
+            for s1 in range(6):
+                sq_products[s0,s1] = np.dot(dict_pc[expm0][s0],dict_pc[expm1][s1])
+        sq_summary[i0,i0+i1] = np.mean(sq_products)
