@@ -42,7 +42,7 @@ extremes = {
     "EYrainbow_glucose":                    [0.,100.],
     "EYrainbow_glucose_largerBF":           [0.,100.],
     "EYrainbow_leucine_large":              [0.,100.],
-    "EYrainbowWhi5Up_betaEstrodiol":        [10.,0.],
+    "EYrainbowWhi5Up_betaEstrodiol":        [0.,10.],
     "EYrainbow_rapamycin_1stTry":           [1000.,0.],
     "EYrainbow_rapamycin_CheckBistability": [300.,0.],
     "EYrainbow_1nmpp1_1st":                 [3000.,0.]
@@ -514,6 +514,7 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
     vec_centroid_ended[-1] = (1 - np.dot(fitter_centroid.coef_[:-1],vec_centroid_ended[:-1]))/fitter_centroid.coef_[-1]
     vec_centroid = vec_centroid_ended - vec_centroid_start
     vec_centroid = vec_centroid/np.linalg.norm(vec_centroid)
+    np.savetxt(f"{folder_pca_data}/condition-vector_{folder}_{name}.txt",vec_centroid)
 
     # Get Principal Components (PCs)
     np_pca = df_pca[columns].to_numpy()
@@ -560,13 +561,14 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
     for i_pc in range(len(pca_components)):
         base = pca_components[i_pc]
         df_pca[f"proj{i_pc}"] = df_pca.apply(lambda x:np.dot(base,x.loc[columns]),axis=1)
-    
+
     pc2proj = arg_cosine[:3]
 
     df_pca_extremes = df_pca.loc[df_pca["condition"].isin(groups)]
-    figproj = plt.figure(figsize=(10,8))
+    # 3d projection
+    figproj = plt.figure((12,10))
     ax = figproj.add_subplot(projection="3d")
-    for condi in pd.unique(df_pca_extremes["condition"]):
+    for condi in groups[::-1]:
         pc_x = df_pca_extremes.loc[df_pca_extremes["condition"].eq(condi),f"proj{pc2proj[0]}"],
         pc_y = df_pca_extremes.loc[df_pca_extremes["condition"].eq(condi),f"proj{pc2proj[1]}"],
         pc_z = df_pca_extremes.loc[df_pca_extremes["condition"].eq(condi),f"proj{pc2proj[2]}"],
@@ -593,75 +595,71 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
     sns.set_style("whitegrid")
     for first,second in ((0,1),(0,2),(1,2)):
         plt.figure()
-        sns.scatterplot(
-            data=df_pca_extremes,
+        sns_plot = sns.scatterplot(
+            data=df_pca_extremes[df_pca_extremes["condition"].eq(groups[0])],
             x=f"proj{pc2proj[first]}",y=f"proj{pc2proj[second]}",
-            hue="condition",palette="tab10",alpha=0.5
+            color="y",alpha=0.5
         )
-        plt.savefig(f"{folder_pca_proj_extremes}/pca_projection2d_{folder}_{name}_pc{pc2proj[first]}{pc2proj[second]}.png")
+        sns_plot = sns.scatterplot(
+            data=df_pca_extremes[df_pca_extremes["condition"].eq(groups[1])],
+            x=f"proj{pc2proj[first]}",y=f"proj{pc2proj[second]}",
+            color="b",alpha=0.5
+        )
+        sns_plot.figure.savefig(f"{folder_pca_proj_extremes}/pca_projection2d_{folder}_{name}_pc{pc2proj[first]}{pc2proj[second]}.png")
         plt.clf()
     
-    # draw with Plotly:
-    figproj = go.Figure()
-    for condi in pd.unique(df_pca["condition"]):
-        figproj.add_trace(
-            go.Scatter3d(
-                x=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[0]}"],
-                y=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[1]}"],
-                z=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[2]}"],
-                name=condi,
-                mode="markers",
-                marker=dict(
-                            size=2,
-                            # color=figcolors[j],
-                            opacity=0.8
-                       )   
-            )
-        )
-    figproj.update_layout(
-        scene=dict(
-            xaxis=dict(
-                title=f"proj{pc2proj[0]}",
-                backgroundcolor='rgba(0,0,0,0)',
-                gridcolor='grey',
-                showline = True,
-                zeroline=True,
-                zerolinecolor='black'
-            ),
-            yaxis=dict(
-                title=f"proj{pc2proj[1]}",
-                backgroundcolor='rgba(0,0,0,0)',
-                gridcolor='grey',
-                showline=True,
-                zeroline=True,
-                zerolinecolor='black'
-            ),
-            zaxis=dict(
-                title=f"proj{pc2proj[2]}",
-                backgroundcolor='rgba(0,0,0,0)',
-                gridcolor='grey',
-                showline = True,
-                zeroline=True,
-                zerolinecolor='black'
-            )
-        )
-    )
-    figproj.write_html(f"{folder_pca_proj_all}/pca_projection3d_{folder}_{name}_pc{''.join([str(p) for p in pc2proj])}.html")
+    # # draw with Plotly:
+    # figproj = go.Figure()
+    # for condi in pd.unique(df_pca["condition"]):
+    #     figproj.add_trace(
+    #         go.Scatter3d(
+    #             x=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[0]}"],
+    #             y=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[1]}"],
+    #             z=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[2]}"],
+    #             name=condi,
+    #             mode="markers",
+    #             marker=dict(
+    #                         size=2,
+    #                         # color=figcolors[j],
+    #                         opacity=0.8
+    #                    )   
+    #         )
+    #     )
+    # figproj.update_layout(
+    #     scene=dict(
+    #         xaxis=dict(
+    #             title=f"proj{pc2proj[0]}",
+    #             backgroundcolor='rgba(0,0,0,0)',
+    #             gridcolor='grey',
+    #             showline = True,
+    #             zeroline=True,
+    #             zerolinecolor='black'
+    #         ),
+    #         yaxis=dict(
+    #             title=f"proj{pc2proj[1]}",
+    #             backgroundcolor='rgba(0,0,0,0)',
+    #             gridcolor='grey',
+    #             showline=True,
+    #             zeroline=True,
+    #             zerolinecolor='black'
+    #         ),
+    #         zaxis=dict(
+    #             title=f"proj{pc2proj[2]}",
+    #             backgroundcolor='rgba(0,0,0,0)',
+    #             gridcolor='grey',
+    #             showline = True,
+    #             zeroline=True,
+    #             zerolinecolor='black'
+    #         )
+    #     )
+    # )
+    # figproj.write_html(f"{folder_pca_proj_all}/pca_projection3d_{folder}_{name}_pc{''.join([str(p) for p in pc2proj])}.html")
 
     return None
 
-# for property in ["total-fraction","total","count"]:
-#     for has_cell in [True,False]:
-#         for if_normalized in [True,False]:
-#             make_pca_plots(property,has_volume=has_cell,is_normalized=if_normalized)
-
-
-# dict_explained_variance_ratio = {}
 for folder in extremes.keys():
-    make_pca_plots(folder,"total-fraction",groups=extremes[folder],has_volume=True,is_normalized=True,non_organelle=False)
     make_pca_plots(folder,"total-fraction",groups=extremes[folder],has_volume=False,is_normalized=True,non_organelle=False)
-# df_explained_variance_ratio = pd.DataFrame(dict_explained_variance_ratio)
-# df_explained_variance_ratio.to_csv(f"{folder_pca_data}/explained_variance_ratio_{name}.csv",index=False)
+
 
 df_trivial = pd.concat(
     [
@@ -718,7 +716,7 @@ for i0,expm0 in enumerate(exp_names):
         for s0 in range(6):
             for s1 in range(6):
                 sq_products[s0,s1] = np.dot(dict_pc[expm0][s0],dict_pc[expm1][s1])
-        sq_summary[i0,i0+i1] = np.sum(sq_products)
+        sq_summary[i0,i0+i1] = np.sum(sq_products)/6.
 fig_summary = px.imshow(
     sq_summary,
     x=exp_names,y=exp_names,
