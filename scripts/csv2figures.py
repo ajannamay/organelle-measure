@@ -15,6 +15,7 @@ from organelle_measure.data import read_results
 
 # Global Variables
 sns.set_style("whitegrid")
+plt.rcParams['font.size'] = '24'
 px_x,px_y,px_z = 0.41,0.41,0.20
 
 organelles = [
@@ -549,7 +550,7 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
     )
     fig_components_sorted.write_html(f"{folder_pca_compare}/condition-sorted-pca_components_{folder}_{name}.html")
     # plot the cosine 
-    plt.figure()
+    plt.figure(figsize=(15,12))
     plt.barh(np.arange(num_pc),cosine_pca[arg_cosine[::-1]],align='center')
     plt.yticks(np.arange(num_pc),[f"PC{i}" for i in arg_cosine[::-1]])
     plt.xlabel(r"$cos\left<condition\ vector,PC\right>$")
@@ -566,7 +567,7 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
 
     df_pca_extremes = df_pca.loc[df_pca["condition"].isin(groups)]
     # 3d projection
-    figproj = plt.figure((12,10))
+    figproj = plt.figure(figsize=(15,12))
     ax = figproj.add_subplot(projection="3d")
     for condi in groups[::-1]:
         pc_x = df_pca_extremes.loc[df_pca_extremes["condition"].eq(condi),f"proj{pc2proj[0]}"],
@@ -594,16 +595,16 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
     # 2d projections
     sns.set_style("whitegrid")
     for first,second in ((0,1),(0,2),(1,2)):
-        plt.figure()
+        plt.figure(figsize=(15,12))
         sns_plot = sns.scatterplot(
             data=df_pca_extremes[df_pca_extremes["condition"].eq(groups[0])],
             x=f"proj{pc2proj[first]}",y=f"proj{pc2proj[second]}",
-            color="y",alpha=0.5
+            color=sns.color_palette("tab10")[1],alpha=0.5
         )
         sns_plot = sns.scatterplot(
             data=df_pca_extremes[df_pca_extremes["condition"].eq(groups[1])],
             x=f"proj{pc2proj[first]}",y=f"proj{pc2proj[second]}",
-            color="b",alpha=0.5
+            color=sns.color_palette("tab10")[0],alpha=0.5
         )
         sns_plot.figure.savefig(f"{folder_pca_proj_extremes}/pca_projection2d_{folder}_{name}_pc{pc2proj[first]}{pc2proj[second]}.png")
         plt.clf()
@@ -671,17 +672,17 @@ df_trivial = pd.concat(
 
 
 experiments = {
-    "glucose":   "EYrainbow_glucose_largerBF",
-    "leucine":   "EYrainbow_leucine_large",
-    "Whi5Up":    "EYrainbowWhi5Up_betaEstrodiol",
-    "1-nm-pp1":  "EYrainbow_1nmpp1_1st",
-    "rapamycin": "EYrainbow_rapamycin_1stTry"
+    "glucose":     "EYrainbow_glucose_largerBF",
+    "leucine":     "EYrainbow_leucine_large",
+    "cell size":   "EYrainbowWhi5Up_betaEstrodiol",
+    "PKA pathway": "EYrainbow_1nmpp1_1st",
+    "TOR pathway": "EYrainbow_rapamycin_1stTry"
 }
 exp_names = list(experiments.keys())
 # find PCs in different experiments most similar to glucose PCs
 dict_pc = {}
 for expm in exp_names: 
-    file_pc = next(folder_pca_data.glob(f"*{experiments[expm]}*organelle-only*.txt"))
+    file_pc = next(folder_pca_data.glob(f"pca*{experiments[expm]}*organelle-only*.txt"))
     dict_pc[expm] = np.loadtxt(str(file_pc))
 dict_product = {}
 dict_ranking = {}
