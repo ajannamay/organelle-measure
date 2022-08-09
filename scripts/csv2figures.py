@@ -509,10 +509,12 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
     np_centroid = df_centroid.to_numpy()
     fitter_centroid.fit(np_centroid,np.ones(np_centroid.shape[0]))
     
-    vec_centroid_start = np_centroid[0]
+    vec_centroid_start = df_centroid.loc[groups[0],:].to_numpy()
     vec_centroid_start[-1] = (1 - np.dot(fitter_centroid.coef_[:-1],vec_centroid_start[:-1]))/fitter_centroid.coef_[-1]
-    vec_centroid_ended = np_centroid[-1]
+
+    vec_centroid_ended = df_centroid.loc[groups[-1],:].to_numpy()
     vec_centroid_ended[-1] = (1 - np.dot(fitter_centroid.coef_[:-1],vec_centroid_ended[:-1]))/fitter_centroid.coef_[-1]
+
     vec_centroid = vec_centroid_ended - vec_centroid_start
     vec_centroid = vec_centroid/np.linalg.norm(vec_centroid)
     np.savetxt(f"{folder_pca_data}/condition-vector_{folder}_{name}.txt",vec_centroid)
@@ -530,6 +532,7 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
             pca_components[c] = -pca_components[c]
     cosine_pca = np.abs(cosine_pca)
     # save and plot PCs without sorting.
+    np.savetxt(f"{folder_pca_data}/cosine_{folder}_{name}.txt",cosine_pca)
     np.savetxt(f"{folder_pca_data}/pca-components_{folder}_{name}.txt",pca_components)    
     fig_components = px.imshow(
         pca_components,
@@ -542,6 +545,8 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
     arg_cosine = np.argsort(cosine_pca)[::-1]
     pca_components_sorted = pca_components[arg_cosine]
     # save and plot the PCs with sorting
+    np.savetxt(f"{folder_pca_compare}/condition-sorted-index_{folder}_{name}.txt",arg_cosine)
+    np.savetxt(f"{folder_pca_compare}/condition-sorted-cosine_{folder}_{name}.txt",cosine_pca[arg_cosine])
     np.savetxt(f"{folder_pca_compare}/condition-sorted-pca-components_{folder}_{name}.txt",pca_components_sorted)
     fig_components_sorted = px.imshow(
         pca_components_sorted,
@@ -575,7 +580,7 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
         pc_z = df_pca_extremes.loc[df_pca_extremes["condition"].eq(condi),f"proj{pc2proj[2]}"],
         ax.scatter(
             pc_x, pc_y, pc_z,
-            alpha=0.2,label=f"{condi}"
+            s=4,alpha=0.2,label=f"{condi}"
         )
     ax.set_xlabel(f"proj {pc2proj[0]}")
     ax.set_ylabel(f"proj {pc2proj[1]}")
@@ -599,12 +604,12 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
         sns_plot = sns.scatterplot(
             data=df_pca_extremes[df_pca_extremes["condition"].eq(groups[0])],
             x=f"proj{pc2proj[first]}",y=f"proj{pc2proj[second]}",
-            color=sns.color_palette("tab10")[1],alpha=0.5
+            color=sns.color_palette("tab10")[1],alpha=0.5,s=4
         )
         sns_plot = sns.scatterplot(
             data=df_pca_extremes[df_pca_extremes["condition"].eq(groups[1])],
             x=f"proj{pc2proj[first]}",y=f"proj{pc2proj[second]}",
-            color=sns.color_palette("tab10")[0],alpha=0.5
+            color=sns.color_palette("tab10")[0],alpha=0.5,s=4
         )
         sns_plot.figure.savefig(f"{folder_pca_proj_extremes}/pca_projection2d_{folder}_{name}_pc{pc2proj[first]}{pc2proj[second]}.png")
         plt.clf()
@@ -701,7 +706,7 @@ glu2ranking = pd.DataFrame(dict_ranking).to_numpy()
 fig_glu2others = px.imshow(
     glu2similar,
     x=exp_names, y=None,
-    color_continuous_scale="RdBu_r"
+    color_continuous_scale="RdBu_r",color_continuous_midpoint=0
 )
 fig_glu2others.update_traces(text=glu2ranking,texttemplate="%{text}")
 fig_glu2others.update_xaxes(side="top")
@@ -721,6 +726,6 @@ for i0,expm0 in enumerate(exp_names):
 fig_summary = px.imshow(
     sq_summary,
     x=exp_names,y=exp_names,
-    color_continuous_scale="RdBu_r"
+    color_continuous_scale="RdBu_r",color_continuous_midpoint=0
 )
 fig_summary.write_html(f"{folder_o}/summary.html")
