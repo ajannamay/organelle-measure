@@ -614,52 +614,52 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
         sns_plot.figure.savefig(f"{folder_pca_proj_extremes}/pca_projection2d_{folder}_{name}_pc{pc2proj[first]}{pc2proj[second]}.png")
         plt.clf()
     
-    # # draw with Plotly:
-    # figproj = go.Figure()
-    # for condi in pd.unique(df_pca["condition"]):
-    #     figproj.add_trace(
-    #         go.Scatter3d(
-    #             x=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[0]}"],
-    #             y=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[1]}"],
-    #             z=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[2]}"],
-    #             name=condi,
-    #             mode="markers",
-    #             marker=dict(
-    #                         size=2,
-    #                         # color=figcolors[j],
-    #                         opacity=0.8
-    #                    )   
-    #         )
-    #     )
-    # figproj.update_layout(
-    #     scene=dict(
-    #         xaxis=dict(
-    #             title=f"proj{pc2proj[0]}",
-    #             backgroundcolor='rgba(0,0,0,0)',
-    #             gridcolor='grey',
-    #             showline = True,
-    #             zeroline=True,
-    #             zerolinecolor='black'
-    #         ),
-    #         yaxis=dict(
-    #             title=f"proj{pc2proj[1]}",
-    #             backgroundcolor='rgba(0,0,0,0)',
-    #             gridcolor='grey',
-    #             showline=True,
-    #             zeroline=True,
-    #             zerolinecolor='black'
-    #         ),
-    #         zaxis=dict(
-    #             title=f"proj{pc2proj[2]}",
-    #             backgroundcolor='rgba(0,0,0,0)',
-    #             gridcolor='grey',
-    #             showline = True,
-    #             zeroline=True,
-    #             zerolinecolor='black'
-    #         )
-    #     )
-    # )
-    # figproj.write_html(f"{folder_pca_proj_all}/pca_projection3d_{folder}_{name}_pc{''.join([str(p) for p in pc2proj])}.html")
+    # draw with Plotly:
+    figproj = go.Figure()
+    for condi in pd.unique(df_pca["condition"]):
+        figproj.add_trace(
+            go.Scatter3d(
+                x=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[0]}"],
+                y=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[1]}"],
+                z=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[2]}"],
+                name=condi,
+                mode="markers",
+                marker=dict(
+                            size=2,
+                            # color=figcolors[j],
+                            opacity=0.8
+                       )   
+            )
+        )
+    figproj.update_layout(
+        scene=dict(
+            xaxis=dict(
+                title=f"proj{pc2proj[0]}",
+                backgroundcolor='rgba(0,0,0,0)',
+                gridcolor='grey',
+                showline = True,
+                zeroline=True,
+                zerolinecolor='black'
+            ),
+            yaxis=dict(
+                title=f"proj{pc2proj[1]}",
+                backgroundcolor='rgba(0,0,0,0)',
+                gridcolor='grey',
+                showline=True,
+                zeroline=True,
+                zerolinecolor='black'
+            ),
+            zaxis=dict(
+                title=f"proj{pc2proj[2]}",
+                backgroundcolor='rgba(0,0,0,0)',
+                gridcolor='grey',
+                showline = True,
+                zeroline=True,
+                zerolinecolor='black'
+            )
+        )
+    )
+    figproj.write_html(f"{folder_pca_proj_all}/pca_projection3d_{folder}_{name}_pc{''.join([str(p) for p in pc2proj])}.html")
 
     return None
 
@@ -684,11 +684,16 @@ experiments = {
     "TOR pathway": "EYrainbow_rapamycin_1stTry"
 }
 exp_names = list(experiments.keys())
-# find PCs in different experiments most similar to glucose PCs
-dict_pc = {}
+
+dict_pc     = {}
+dict_cosine = {}
 for expm in exp_names: 
-    file_pc = next(folder_pca_data.glob(f"pca*{experiments[expm]}*organelle-only*.txt"))
+    file_pc = folder_pca_data/f"pca-components_{experiments[expm]}_extremes_no-cytoplasm_organelle-only_total-fraction_norm-mean-std.txt"
+    file_cosine = folder_pca_data/f"cosine_{experiments[expm]}_extremes_no-cytoplasm_organelle-only_total-fraction_norm-mean-std.txt"
     dict_pc[expm] = np.loadtxt(str(file_pc))
+    dict_cosine[expm] = np.loadtxt(str(file_cosine))
+
+# find PCs in different experiments most similar to glucose PCs
 dict_product = {}
 dict_ranking = {}
 for expm in exp_names: 
@@ -710,7 +715,7 @@ fig_glu2others = px.imshow(
 )
 fig_glu2others.update_traces(text=glu2ranking,texttemplate="%{text}")
 fig_glu2others.update_xaxes(side="top")
-fig_glu2others.write_html(f"{folder_o}/compare2glucose.html")
+fig_glu2others.write_html(f"{folder_pca_compare}/compare2glucose.html")
 
 
 # summary of experiments
@@ -721,11 +726,11 @@ for i0,expm0 in enumerate(exp_names):
         sq_products = np.zeros((6,6)) # hard-coded num of organelles
         for s0 in range(6):
             for s1 in range(6):
-                sq_products[s0,s1] = np.dot(dict_pc[expm0][s0],dict_pc[expm1][s1])
-        sq_summary[i0,i0+i1] = np.sum(sq_products)/6.
+                sq_products[s0,s1] = dict_cosine[expm0][s0]*np.dot(dict_pc[expm0][s0],dict_pc[expm1][s1])*dict_cosine[expm1][s1]
+        sq_summary[i0,i0+i1] = np.sum(sq_products)
 fig_summary = px.imshow(
     sq_summary,
     x=exp_names,y=exp_names,
     color_continuous_scale="RdBu_r",color_continuous_midpoint=0
 )
-fig_summary.write_html(f"{folder_o}/summary.html")
+fig_summary.write_html(f"{folder_pca_compare}/summary.html")
