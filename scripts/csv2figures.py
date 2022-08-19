@@ -15,7 +15,7 @@ from organelle_measure.data import read_results
 
 # Global Variables
 sns.set_style("whitegrid")
-plt.rcParams['font.size'] = '24'
+plt.rcParams['font.size'] = '18'
 px_x,px_y,px_z = 0.41,0.41,0.20
 
 organelles = [
@@ -580,7 +580,7 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
         pc_z = df_pca_extremes.loc[df_pca_extremes["condition"].eq(condi),f"proj{pc2proj[2]}"],
         ax.scatter(
             pc_x, pc_y, pc_z,
-            s=64,alpha=0.2,label=f"{condi}"
+            s=49,alpha=0.2,label=f"{condi}"
         )
     ax.set_xlabel(f"proj {pc2proj[0]}")
     ax.set_ylabel(f"proj {pc2proj[1]}")
@@ -604,12 +604,12 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
         sns_plot = sns.scatterplot(
             data=df_pca_extremes[df_pca_extremes["condition"].eq(groups[0])],
             x=f"proj{pc2proj[first]}",y=f"proj{pc2proj[second]}",
-            color=sns.color_palette("tab10")[1],s=64,alpha=0.5
+            color=sns.color_palette("tab10")[1],s=49,alpha=0.5
         )
         sns_plot = sns.scatterplot(
             data=df_pca_extremes[df_pca_extremes["condition"].eq(groups[1])],
             x=f"proj{pc2proj[first]}",y=f"proj{pc2proj[second]}",
-            color=sns.color_palette("tab10")[0],s=64,alpha=0.5
+            color=sns.color_palette("tab10")[0],s=49,alpha=0.5
         )
         sns_plot.figure.savefig(f"{folder_pca_proj_extremes}/pca_projection2d_{folder}_{name}_pc{pc2proj[first]}{pc2proj[second]}.png")
         plt.clf()
