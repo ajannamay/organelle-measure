@@ -109,16 +109,16 @@ for folder in extremes.keys():
         probs += 10**(-20)
         probs = probs/np.sum(probs)
 
-        # "corrected" code
-        indices_ = np.array(list(map(
-                        lambda x: sum([xi*(num_bin)**i for i,xi in enumerate(x)]),
-                        np.transpose(posits)
-                  )))
-        indices = np.bincount(indices_)
-        probs1 = np.zeros((num_bin)**len(organelles))
-        probs1[:len(indices)] = indices
-        probs1 += 10**(-20)
-        probs1 = probs1/np.sum(probs1)
+        # # "corrected" code
+        # indices_ = np.array(list(map(
+        #                 lambda x: sum([xi*(num_bin)**i for i,xi in enumerate(x)]),
+        #                 np.transpose(posits)
+        #           )))
+        # indices = np.bincount(indices_)
+        # probs1 = np.zeros((num_bin)**len(organelles))
+        # probs1[:len(indices)] = indices
+        # probs1 += 10**(-20)
+        # probs1 = probs1/np.sum(probs1)
 
         # # "old" code, could be wrong
         # indices = np.array(list(map(
@@ -382,6 +382,11 @@ fig = px.line(
     color="folder"
 )
 fig.write_html(str(folder_rate/"non-organelle-vol-total_growth-rate.html"))
+
+# plot volume fraction vs. growth rate
+
+
+
 # PLOTS
 
 def plot_histo_violin(df,prop_y,prop_x="cell_area",savepath="histo-violin.html"):
