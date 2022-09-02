@@ -27,6 +27,16 @@ organelles = [
     "LD"
 ]
 
+experiments = {
+    "glucose":     "EYrainbow_glucose_largerBF",
+    "leucine":     "EYrainbow_leucine_large",
+    "cell size":   "EYrainbowWhi5Up_betaEstrodiol",
+    "PKA pathway": "EYrainbow_1nmpp1_1st",
+    "TOR pathway": "EYrainbow_rapamycin_1stTry"
+}
+exp_names = list(experiments.keys())
+exp_folder = [experiments[i] for i in exp_names]
+
 subfolders = [
     "EYrainbow_glucose",
     "EYrainbow_glucose_largerBF",
@@ -58,6 +68,7 @@ folder_pca_data = Path("./data/pca_data")
 folder_pca_proj_extremes = Path("./data/pca_projection_extremes")
 folder_pca_proj_all = Path("./data/pca_projection_all")
 folder_pca_compare = Path("./data/pca_compare")
+folder_fraction_rate = Path("./data/fraction_rate")
 
 # READ FILES
 df_bycell = read_results(folder_i,subfolders,(px_x,px_y,px_z))
@@ -196,6 +207,8 @@ for folder in extremes.keys():
     df_entropies[-1]["entropy_difference"] = df_entropies[-1]["entropy"] - df_entropies[-1].loc[df_entropies[-1]["condition"].eq(normal),"entropy"].values[0]
     df_entropies[-1]["entropy_diff_dummy"] = df_entropies[-1]["entropy_dummy"] - df_entropies[-1].loc[df_entropies[-1]["condition"].eq(normal),"entropy_dummy"].values[0]
 df_entropies = pd.concat(df_entropies,ignore_index=True)
+# need to incorporate df_rate
+
 
 # make plots about KL divergence and info entropy
 for folder in df_entropies["folder"].unique():
@@ -384,7 +397,29 @@ fig = px.line(
 fig.write_html(str(folder_rate/"non-organelle-vol-total_growth-rate.html"))
 
 # plot volume fraction vs. growth rate
+df_bycondition = df_bycondition[df_bycondition["folder"].isin(exp_folder)]
 
+plt.figure(figsize=(10,8))
+sns.scatterplot(
+    data=df_bycondition,
+    x="growth_rate",y="total-fraction",
+    hue="folder",style="organelle",s=25
+)
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0)
+plt.savefig(str(folder_fraction_rate/"fraction_rate_cyto_all.png"))
+plt.close()
+
+for orga in [*organelles,"non-organelle"]:
+    plt.figure(figsize=(10,8))
+    sns.scatterplot(
+        data=df_bycondition[df_bycondition["organelle"].eq(orga)],
+        x="growth_rate",y="total-fraction",
+        hue="folder",s=25
+    )
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0)
+    plt.savefig(str(folder_fraction_rate/f"fraction_rate_cyto_{orga}.png"))
+    plt.close()
+    
 
 
 # PLOTS
@@ -681,14 +716,6 @@ df_trivial = pd.concat(
 )
 
 
-experiments = {
-    "glucose":     "EYrainbow_glucose_largerBF",
-    "leucine":     "EYrainbow_leucine_large",
-    "cell size":   "EYrainbowWhi5Up_betaEstrodiol",
-    "PKA pathway": "EYrainbow_1nmpp1_1st",
-    "TOR pathway": "EYrainbow_rapamycin_1stTry"
-}
-exp_names = list(experiments.keys())
 
 dict_pc     = {}
 dict_cosine = {}
