@@ -399,7 +399,7 @@ for orga in [*organelles,"non-organelle"]:
 df_fraction_bycondition["growth-rate"] = df_bycondition.loc[df_bycondition["organelle"].eq("ER"),"growth_rate"]
 df_fraction_bycondition.reset_index(inplace=True)
 df_bycondition.reset_index(inplace=True)
-df_fraction_bycondition.to_csv(str(folder_fraction_rate/"fraction-by-conditions.csv"),index=False)
+# df_fraction_bycondition.to_csv(str(folder_fraction_rate/"fraction-by-conditions.csv"),index=False)
 
 df_bycell.set_index(["folder","condition"],inplace=True)
 df_bycell["growth_rate"] = df_rates["growth_rate"]
@@ -409,10 +409,11 @@ idx_fraction_bycell = df_bycell[df_bycell["organelle"].eq("ER")].index
 df_fraction_bycell  = pd.DataFrame(index=idx_fraction_bycell)
 for orga in [*organelles,"non-organelle"]:
     df_fraction_bycell[orga] = df_bycell.loc[df_bycell["organelle"].eq(orga),"total-fraction"]
+df_fraction_bycell["cell-volume"] = df_bycell.loc[df_bycell["organelle"].eq("ER"),"cell-volume"]
 df_fraction_bycell["growth-rate"] = df_bycell.loc[df_bycell["organelle"].eq("ER"),"growth_rate"]
 df_fraction_bycell.reset_index(inplace=True)
 df_bycell.reset_index(inplace=True)
-df_fraction_bycell.to_csv(str(folder_fraction_rate/"fraction-by-cells.csv"),index=False)
+# df_fraction_bycell.to_csv(str(folder_fraction_rate/"fraction-by-cells.csv"),index=False)
 
 
 # plot volume fraction vs. growth rate
@@ -425,25 +426,30 @@ fig.write_html(str(folder_rate/"non-organelle-vol-total_growth-rate.html"))
 
 df_bycondition = df_bycondition[df_bycondition["folder"].isin(exp_folder)]
 # df_bycondition.to_csv(str(folder_fraction_rate/"to_plot.csv"))
-plt.figure(figsize=(10,8))
+plt.figure(figsize=(12,8))
 sns.scatterplot(
     data=df_bycondition,
     x="growth_rate",y="total-fraction",
     hue="folder",style="organelle",s=25
 )
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0)
-plt.savefig(str(folder_fraction_rate/"fraction_rate_cyto_all.png"))
+plt.savefig(
+    str(folder_fraction_rate/"fraction_rate_cyto_all.png"),
+    bbox_inches='tight')
 plt.close()
 
 for orga in [*organelles,"non-organelle"]:
-    plt.figure(figsize=(10,8))
+    plt.figure(figsize=(12,8))
     sns.scatterplot(
         data=df_bycondition[df_bycondition["organelle"].eq(orga)],
         x="growth_rate",y="total-fraction",
         hue="folder",s=25
     )
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0)
-    plt.savefig(str(folder_fraction_rate/f"fraction_rate_cyto_{orga}.png"))
+    plt.savefig(
+        str(folder_fraction_rate/f"fraction_rate_cyto_{orga}.png"),
+        bbox_inches='tight'
+    )
     plt.close()
     
 
