@@ -426,7 +426,7 @@ fig.write_html(str(folder_rate/"non-organelle-vol-total_growth-rate.html"))
 
 df_bycondition = df_bycondition[df_bycondition["folder"].isin(exp_folder)]
 # df_bycondition.to_csv(str(folder_fraction_rate/"to_plot.csv"))
-plt.figure(figsize=(12,8))
+plt.figure(figsize=(10,8))
 sns.scatterplot(
     data=df_bycondition,
     x="growth_rate",y="total-fraction",
@@ -439,7 +439,7 @@ plt.savefig(
 plt.close()
 
 for orga in [*organelles,"non-organelle"]:
-    plt.figure(figsize=(12,8))
+    plt.figure(figsize=(10,8))
     sns.scatterplot(
         data=df_bycondition[df_bycondition["organelle"].eq(orga)],
         x="growth_rate",y="total-fraction",
