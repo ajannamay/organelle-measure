@@ -798,3 +798,66 @@ fig_summary = px.imshow(
     color_continuous_scale="RdBu_r",color_continuous_midpoint=0
 )
 fig_summary.write_html(f"{folder_pca_compare}/summary.html")
+
+
+# power law
+import numpy as np
+import pandas as pd
+from pathlib import Path
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+dfs = []
+for filepath in Path("data/power_law/").glob("*_loglog.csv"):
+    if "scambled" in filepath.stem:
+        print(filepath)
+        df_scambled = pd.read_csv(str(filepath),names=["log-Vcyto",r"log-Vcell"])
+        df_scambled.loc[df_scambled["log-Vcyto"].astype(str).str.contains("i"),"log-Vcyto"] = np.nan
+        df_scambled["log-Vcyto"] = df_scambled["log-Vcyto"].astype(float)
+        continue
+    df = pd.read_csv(str(filepath),names=["log-Vcyto",r"log-Vcell"])
+    condition = int(filepath.stem.partition("BF_")[2].partition("_")[0])
+    df.loc[df["log-Vcyto"].astype(str).str.contains("i"),"log-Vcyto"] = np.nan
+    df["log-Vcyto"] = df["log-Vcyto"].astype(float)
+    df["condition"] = condition
+    dfs.append(df)
+dfs = pd.concat(dfs,ignore_index=True)
+
+list_colors = [0,2,3,1,4]
+plt.figure(figsize=(12,10))
+fig,ax = plt.subplots()
+for i,condi in enumerate(np.sort(dfs["condition"].unique())):
+    # ax.axis("equal")
+    ax.set_xbound(2,7)
+    ax.set_ybound(3,7)
+    ax.scatter(
+        x=dfs.loc[dfs["condition"].eq(condi),"log-Vcyto"],
+        y=dfs.loc[dfs["condition"].eq(condi),"log-Vcell"],
+        label=f"{condi/100*2}% glucose",
+        color=sns.color_palette("tab10")[list_colors[i]],alpha=0.5,edgecolors='w'
+    )
+    ax.set_adjustable('datalim')
+inlet = fig.add_axes([0.62,0.2,0.25,0.25])
+inlet.axis("equal")
+inlet.set_xbound(1.5,7.5)
+inlet.set_ybound(3,8)
+inlet.scatter(
+    x=df_scambled["log-Vcyto"],
+    y=df_scambled["log-Vcell"],
+    label="scambled",
+    color="grey",alpha=0.5,edgecolors='w'
+)
+ax.set_adjustable('datalim')
+x_min,x_max = dfs["log-Vcyto"].min(),dfs["log-Vcyto"].max()
+y_min,y_max = dfs["log-Vcell"].min(),dfs["log-Vcell"].max()
+ax.plot(
+    [x_min,x_max],[y_min,y_min+(x_max-x_min)],"k--"
+)
+ax.plot(
+    [x_min,x_max],[y_min+0.5,y_min+0.5+(2/3)*(x_max-x_min)],"r--"
+)
+ax.set_xlabel(r"$log(V_{cyto})$")
+ax.set_ylabel(r"$log(V_{cell})$")
+ax.legend()
+plt.savefig("data/power_law/power_law_rectangular.png")
+
