@@ -73,7 +73,9 @@ folder_fraction_rate = Path("./data/fraction_rate")
 # READ FILES
 df_bycell = read_results(folder_i,subfolders,(px_x,px_y,px_z))
 
+
 # DATAFRAME FOR CORRELATION COEFFICIENT
+
 pv_bycell = df_bycell.set_index(['folder','condition','field','idx-cell'])
 df_corrcoef = pd.DataFrame(index=pv_bycell.loc[pv_bycell["organelle"].eq("ER")].index)
 df_corrcoef.loc[:,'effective-length'] = np.sqrt(pv_bycell.loc[pv_bycell["organelle"].eq("ER"),'cell-area']/np.pi)
@@ -88,7 +90,6 @@ for orga in [*organelles,"non-organelle"]:
         properties.append(prop_new)
         df_corrcoef.loc[:,prop_new] = pv_bycell.loc[pv_bycell["organelle"]==orga,prop]
 df_corrcoef.reset_index(inplace=True)
-
 
 # Kullback–Leibler_divergence of different conditions
 df_entropies = []
@@ -210,7 +211,8 @@ df_entropies = pd.concat(df_entropies,ignore_index=True)
 # need to incorporate df_rate
 
 
-# make plots about KL divergence and info entropy
+# KL divergence and info entropy
+
 for folder in df_entropies["folder"].unique():
     plt.figure()
     g = sns.scatterplot(
@@ -827,6 +829,7 @@ list_colors = [0,2,3,1,4]
 plt.figure(figsize=(12,10))
 fig,ax = plt.subplots()
 for i,condi in enumerate(np.sort(dfs["condition"].unique())):
+    # print(i,condi,list_colors[i])
     # ax.axis("equal")
     ax.set_xbound(2,7)
     ax.set_ybound(3,7)
@@ -861,3 +864,21 @@ ax.set_ylabel(r"$log(V_{cell})$")
 ax.legend()
 plt.savefig("data/power_law/power_law_rectangular.png")
 
+
+df_glu_cyto_rate = df_bycell.loc[df_bycell["folder"].eq("EYrainbow_glucose_largerBF")&df_bycell["organelle"].eq("non-organelle")]
+df_glu_cyto_rate_bycondi = df_glu_cyto_rate.groupby("condition").mean()
+df_glu_cyto_rate_bycondi["fraction-std"] = df_glu_cyto_rate.groupby("condition").std()["total-fraction"]
+df_glu_cyto_rate_bycondi.reset_index(inplace=True)
+
+for i,condi in enumerate(np.sort(dfs["condition"].unique())):
+    plt.errorbar(
+        df_glu_cyto_rate_bycondi.loc[df_glu_cyto_rate_bycondi["condition"].eq(condi),"growth_rate"],
+        df_glu_cyto_rate_bycondi.loc[df_glu_cyto_rate_bycondi["condition"].eq(condi),"total-fraction"],
+        yerr=df_glu_cyto_rate_bycondi.loc[df_glu_cyto_rate_bycondi["condition"].eq(condi),"fraction-std"],
+        color=sns.color_palette("tab10")[list_colors[i]],
+        label=f"{condi/100*2}% glucose",fmt='o',capsize=5
+    )
+plt.xlabel("Growth Rate")
+plt.ylabel("Cytoplasmic Volume Fraction")
+plt.legend()
+plt.savefig("data/power_law/cytofraction_vs_growthrate.png")
