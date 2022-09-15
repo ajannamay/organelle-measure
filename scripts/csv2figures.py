@@ -15,7 +15,8 @@ from organelle_measure.data import read_results
 
 # Global Variables
 sns.set_style("whitegrid")
-plt.rcParams['font.size'] = '18'
+plt.rcParams['font.size'] = '12'
+
 px_x,px_y,px_z = 0.41,0.41,0.20
 
 organelles = [
@@ -358,7 +359,7 @@ for folder in subfolders:
             )
         fig.write_html(f"{folder_correlation}/conditions/corrcoef_{folder}_{str(condi).replace('.','-')}.html")    
 
-    # # Pairwise relation atlas
+    # # Pairwise relation atlas, super slow!
     # fig_pair = sns.PairGrid(df_corrcoef,hue="condition",vars=['effective-length','cell-area','cell-volume',*properties],height=3.0)
     # fig_pair.map_diag(sns.histplot)
     # # f_pairig.map_offdiag(sns.scatterplot)
@@ -809,6 +810,21 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+# Shankar did not give me the glu-0.5 data
+df_tmp = df_bycell.loc[
+    df_bycell["folder"].eq("EYrainbow_glucose_largerBF")
+    &df_bycell["organelle"].eq("non-organelle")
+    &df_bycell["condition"].eq(0.5)
+    ,
+    ["total","cell-volume"]
+]
+df_tmp = np.log(df_tmp)
+df_tmp = df_tmp[df_tmp["total"]>2]
+df_tmp.to_csv(
+    'data/power_law/cellvolvscytovol_glucoselargerBF_0-5_loglog.csv',
+    header=False,index=False
+)
+
 dfs = []
 for filepath in Path("data/power_law/").glob("*_loglog.csv"):
     if "scambled" in filepath.stem:
@@ -818,19 +834,22 @@ for filepath in Path("data/power_law/").glob("*_loglog.csv"):
         df_scambled["log-Vcyto"] = df_scambled["log-Vcyto"].astype(float)
         continue
     df = pd.read_csv(str(filepath),names=["log-Vcyto",r"log-Vcell"])
-    condition = int(filepath.stem.partition("BF_")[2].partition("_")[0])
+    condition = float(filepath.stem.partition("BF_")[2].partition("_")[0].replace('-','.'))
+    df.loc[df["log-Vcyto"].eq(-np.inf),"log-Vcyto"] = np.nan
     df.loc[df["log-Vcyto"].astype(str).str.contains("i"),"log-Vcyto"] = np.nan
     df["log-Vcyto"] = df["log-Vcyto"].astype(float)
     df["condition"] = condition
     dfs.append(df)
 dfs = pd.concat(dfs,ignore_index=True)
 
-list_colors = [0,2,3,1,4]
+# Plot
+list_colors = [0,2,3,4,1,5]
 plt.figure(figsize=(12,10))
 fig,ax = plt.subplots()
 for i,condi in enumerate(np.sort(dfs["condition"].unique())):
-    # print(i,condi,list_colors[i])
+    print(i,condi,list_colors[i])
     # ax.axis("equal")
+
     ax.set_xbound(2,7)
     ax.set_ybound(3,7)
     ax.scatter(
@@ -863,22 +882,27 @@ ax.set_xlabel(r"$log(V_{cyto})$")
 ax.set_ylabel(r"$log(V_{cell})$")
 ax.legend()
 plt.savefig("data/power_law/power_law_rectangular.png")
+plt.close()
 
 
+# Errorbar plot of V_cyto vs. growth rate
 df_glu_cyto_rate = df_bycell.loc[df_bycell["folder"].eq("EYrainbow_glucose_largerBF")&df_bycell["organelle"].eq("non-organelle")]
 df_glu_cyto_rate_bycondi = df_glu_cyto_rate.groupby("condition").mean()
 df_glu_cyto_rate_bycondi["fraction-std"] = df_glu_cyto_rate.groupby("condition").std()["total-fraction"]
 df_glu_cyto_rate_bycondi.reset_index(inplace=True)
 
-for i,condi in enumerate(np.sort(dfs["condition"].unique())):
+plt.figure(figsize=(12,10))
+for i,condi in enumerate(np.sort(df_glu_cyto_rate["condition"].unique())):
     plt.errorbar(
         df_glu_cyto_rate_bycondi.loc[df_glu_cyto_rate_bycondi["condition"].eq(condi),"growth_rate"],
         df_glu_cyto_rate_bycondi.loc[df_glu_cyto_rate_bycondi["condition"].eq(condi),"total-fraction"],
-        yerr=df_glu_cyto_rate_bycondi.loc[df_glu_cyto_rate_bycondi["condition"].eq(condi),"fraction-std"],
+        yerr=df_glu_cyto_rate_bycondi.loc[df_glu_cyto_rate_bycondi["condition"].eq(condi),"fraction-std"]/np.sqrt(len(df_glu_cyto_rate_bycondi)),
         color=sns.color_palette("tab10")[list_colors[i]],
         label=f"{condi/100*2}% glucose",fmt='o',capsize=5
     )
+    plt.ylim(0.,1.)
 plt.xlabel("Growth Rate")
 plt.ylabel("Cytoplasmic Volume Fraction")
 plt.legend()
-plt.savefig("data/power_law/cytofraction_vs_growthrate.png")
+plt.savefig("data/power_law/cytofraction_vs_growthrate_sem.png")
+plt.close()
