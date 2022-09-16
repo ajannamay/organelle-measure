@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+from matplotlib import container
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -15,7 +16,7 @@ from organelle_measure.data import read_results
 
 # Global Variables
 sns.set_style("whitegrid")
-plt.rcParams['font.size'] = '12'
+plt.rcParams['font.size'] = '18'
 
 px_x,px_y,px_z = 0.41,0.41,0.20
 
@@ -898,11 +899,15 @@ for i,condi in enumerate(np.sort(df_glu_cyto_rate["condition"].unique())):
         df_glu_cyto_rate_bycondi.loc[df_glu_cyto_rate_bycondi["condition"].eq(condi),"total-fraction"],
         yerr=df_glu_cyto_rate_bycondi.loc[df_glu_cyto_rate_bycondi["condition"].eq(condi),"fraction-std"]/np.sqrt(len(df_glu_cyto_rate_bycondi)),
         color=sns.color_palette("tab10")[list_colors[i]],
-        label=f"{condi/100*2}% glucose",fmt='o',capsize=5
+        label=f"{condi/100*2}% glucose",fmt='o',capsize=10,markersize=20
     )
     plt.ylim(0.,1.)
 plt.xlabel("Growth Rate")
 plt.ylabel("Cytoplasmic Volume Fraction")
-plt.legend()
+ax_cyto_rate = plt.gca()
+handles, labels = ax_cyto_rate.get_legend_handles_labels()
+handles = [h[0] if isinstance(h, container.ErrorbarContainer) else h for h in handles]
+ax_cyto_rate.legend(handles, labels)
+plt.tight_layout()
 plt.savefig("data/power_law/cytofraction_vs_growthrate_sem.png")
 plt.close()
