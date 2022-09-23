@@ -796,11 +796,11 @@ for i0,expm0 in enumerate(exp_names):
                 sq_products[s0,s1] = dict_cosine[expm0][s0]*np.dot(dict_pc[expm0][s0],dict_pc[expm1][s1])*dict_cosine[expm1][s1]
         sq_summary[i0,i0+i1] = np.sum(sq_products)
 fig_summary = px.imshow(
-    sq_summary,
+    sq_summary.T,
     x=exp_names,y=exp_names,
     color_continuous_scale="RdBu_r",color_continuous_midpoint=0
 )
-fig_summary.write_html(f"{folder_pca_compare}/summary.html")
+fig_summary.write_html(f"{folder_pca_compare}/summary_transpose.html")
 
 
 # power law
@@ -883,6 +883,65 @@ ax.set_ylabel(r"$log(V_{cell})$")
 ax.legend()
 plt.savefig("data/power_law/power_law_rectangular.png")
 plt.close()
+
+# generalize to other pairs of volumes.
+df_glu_logs = df_bycell.loc[df_bycell["folder"].eq("EYrainbow_glucose_largerBF") & df_bycell["organelle"].eq("ER"),["condition","cell-volume"]]
+df_glu_logs = df_glu_logs.reset_index().drop("index",axis=1)
+df_glu_logs["cell-volume"] = np.log(df_glu_logs["cell-volume"])
+for orga in [*organelles,"non-organelle"]:
+    df_glu_logs[orga] = np.log(df_bycell.loc[df_bycell["folder"].eq("EYrainbow_glucose_largerBF") & df_bycell["organelle"].eq(orga),"total"].reset_index().drop("index",axis=1))
+df_glu_logs.replace([np.inf, -np.inf], np.nan, inplace=True)
+df_glu_logs.dropna(axis=0,inplace=True)
+
+fitted = np.zeros((8,8))
+for i,prop1 in enumerate(["cell-volume",*organelles,"non-organelle"]):
+    for j,prop2 in enumerate(["cell-volume",*organelles,"non-organelle"]):
+        dfs2fit = []
+        for condi in [0,0.5,5,50,100,200]:
+            x_min,x_max = np.nanpercentile(df_glu_logs.loc[df_glu_logs["condition"].eq(condi),prop1].to_numpy(),[10,99])
+            # dfs2fit.append(df_glu_logs[df_glu_logs["condition"].eq(condi)&df_glu_logs[prop1].ge(x_min)&df_glu_logs[prop1].le(x_max)])
+            dfs2fit.append(df_glu_logs[df_glu_logs["condition"].eq(condi)&df_glu_logs[prop1].ge(2)])
+        dfs2fit = pd.concat(dfs2fit,ignore_index=True)
+        # fitted[i,j] = np.polyfit(dfs2fit[prop1],dfs2fit[prop2],1)[0]
+        fitted[i,j] = LinearRegression().fit(dfs2fit[prop1].to_numpy().reshape(-1,1),dfs2fit[prop2]).coef_[0]
+np.savetxt("data/power_law/pairwise.txt",fitted)
+
+plt.figure()
+sns.pairplot(
+    data=dfs2fit,kind="reg",hue="condition",plot_kws={"ci":None},
+    x_vars=["cell-volume",*organelles,"non-organelle"],
+    y_vars=["cell-volume",*organelles,"non-organelle"]
+)
+plt.savefig("data/power_law/pairwise.png")
+plt.close
+
+# generalize to other pairs of volumes, but only 100% glucose
+df_glu_logs = df_bycell.loc[df_bycell["folder"].eq("EYrainbow_glucose_largerBF") & df_bycell["organelle"].eq("ER") &df_bycell["condition"].eq(100.),["cell-volume"]]
+df_glu_logs = df_glu_logs.reset_index().drop("index",axis=1)
+df_glu_logs["cell-volume"] = np.log(df_glu_logs["cell-volume"])
+for orga in [*organelles,"non-organelle"]:
+    df_glu_logs[orga] = np.log(df_bycell.loc[df_bycell["folder"].eq("EYrainbow_glucose_largerBF") & df_bycell["organelle"].eq(orga) & df_bycell["condition"].eq(100.),"total"].reset_index().drop("index",axis=1))
+df_glu_logs.replace([np.inf, -np.inf], np.nan, inplace=True)
+df_glu_logs.dropna(axis=0,inplace=True)
+
+fitted = np.zeros((8,8))
+for i,prop1 in enumerate(["cell-volume",*organelles,"non-organelle"]):
+    for j,prop2 in enumerate(["cell-volume",*organelles,"non-organelle"]):
+        x_min,x_max = np.nanpercentile(df_glu_logs.loc[:,prop1].to_numpy(),[10,99])
+        # dfs2fit.append(df_glu_logs[df_glu_logs[prop1].ge(x_min)&df_glu_logs[prop1].le(x_max)])
+        dfs2fit = df_glu_logs[df_glu_logs[prop1].ge(2)]
+        # fitted[i,j] = np.polyfit(dfs2fit[prop1],dfs2fit[prop2],1)[0]
+        fitted[i,j] = LinearRegression().fit(dfs2fit[prop1].to_numpy().reshape(-1,1),dfs2fit[prop2].to_numpy()).coef_[0]
+np.savetxt("data/power_law/pairwise_glu-100.txt",fitted)
+
+plt.figure()
+sns.pairplot(
+    data=dfs2fit,kind="reg",plot_kws={"ci":None},
+    x_vars=["cell-volume",*organelles,"non-organelle"],
+    y_vars=["cell-volume",*organelles,"non-organelle"]
+)
+plt.savefig("data/power_law/pairwise_glu-100.png")
+plt.close
 
 
 # Errorbar plot of V_cyto vs. growth rate
