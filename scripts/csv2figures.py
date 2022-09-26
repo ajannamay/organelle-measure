@@ -844,9 +844,9 @@ for filepath in Path("data/power_law/").glob("*_loglog.csv"):
 dfs = pd.concat(dfs,ignore_index=True)
 
 # Plot
+plt.rcParams['font.size'] = '18'
 list_colors = [0,2,3,4,1,5]
-plt.figure(figsize=(12,10))
-fig,ax = plt.subplots()
+fig,ax = plt.subplots(figsize=(12,9))
 for i,condi in enumerate(np.sort(dfs["condition"].unique())):
     print(i,condi,list_colors[i])
     # ax.axis("equal")
