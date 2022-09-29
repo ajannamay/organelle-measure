@@ -17,6 +17,7 @@ from organelle_measure.data import read_results
 # Global Variables
 sns.set_style("whitegrid")
 plt.rcParams['font.size'] = '18'
+list_colors = [1,2,3,4,0,5] # to permutate sns.color_palette("tab10")
 
 px_x,px_y,px_z = 0.41,0.41,0.20
 
@@ -307,6 +308,24 @@ plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0)
 plt.savefig(f"{folder_mutualinfo}/klDivergence_entropy.png")
 plt.clf()
 
+# glucose large experiment only:
+plt.rcParams['font.size'] = '18'
+plt.figure(figsize=(12,10))
+g = sns.scatterplot(
+    data=df_entropies[df_entropies["folder"].eq("EYrainbow_glucose_largerBF")],
+    x="KL_divergence",y="entropy",hue="condition",marker="x",s=81,
+    palette=list(np.array(sns.color_palette("tab10"))[list_colors])
+)
+sns.scatterplot(
+    data=df_entropies[df_entropies["folder"].eq("EYrainbow_glucose_largerBF")],
+    x="KL_divergence_dummy",y="entropy_dummy",hue="condition",
+    palette=list(np.array(sns.color_palette("tab10"))[list_colors]),marker="o",ax=g,s=81
+)
+plt.ylim(0,None)
+plt.savefig(f"{folder_mutualinfo}/entropy_klDivergence_glucose.png")
+plt.clf()
+
+
 
 for folder in subfolders:
     # mutual information
@@ -390,6 +409,10 @@ df_bycondition = pivot_bycondition.reset_index()
 df_rates = pd.read_csv(str(folder_rate/"growth_rate.csv"))
 df_rates.rename(columns={"experiment":"folder"},inplace=True)
 df_rates.set_index(["folder","condition"],inplace=True)
+
+df_entropies.set_index(["folder","condition"],inplace=True)
+df_entropies.loc[:,"growth_rate"] = df_rates["growth_rate"]
+df_entropies.reset_index(inplace=True)
 
 df_bycondition.set_index(["folder","condition"],inplace=True)
 df_bycondition.loc[:,"growth_rate"] = df_rates["growth_rate"]
@@ -845,7 +868,6 @@ dfs = pd.concat(dfs,ignore_index=True)
 
 # Plot
 plt.rcParams['font.size'] = '18'
-list_colors = [0,2,3,4,1,5]
 fig,ax = plt.subplots(figsize=(12,9))
 for i,condi in enumerate(np.sort(dfs["condition"].unique())):
     print(i,condi,list_colors[i])
@@ -907,13 +929,16 @@ for i,prop1 in enumerate(["cell-volume",*organelles,"non-organelle"]):
         fitted[i,j] = LinearRegression().fit(dfs2fit[prop1].to_numpy().reshape(-1,1),dfs2fit[prop2]).coef_[0]
 np.savetxt("data/power_law/pairwise.txt",fitted)
 
+plt.rcParams['font.size'] = '24'
 plt.figure()
 sns.pairplot(
-    data=dfs2fit,kind="reg",hue="condition",plot_kws={"ci":None},
-    x_vars=["cell-volume",*organelles,"non-organelle"],
-    y_vars=["cell-volume",*organelles,"non-organelle"]
+    data=dfs2fit,kind="reg",hue="condition",
+    vars=["cell-volume",*organelles,"non-organelle"],
+    palette=list(np.array(sns.color_palette("tab10"))[list_colors]),
+    plot_kws={"ci":None},
+    height=5.0
 )
-plt.savefig("data/power_law/pairwise.png")
+plt.savefig("data/power_law/pairwise_ge2.png")
 plt.close
 
 # generalize to other pairs of volumes, but only 100% glucose
