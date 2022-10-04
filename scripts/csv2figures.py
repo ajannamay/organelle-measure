@@ -916,16 +916,21 @@ for orga in [*organelles,"non-organelle"]:
 df_glu_logs.replace([np.inf, -np.inf], np.nan, inplace=True)
 df_glu_logs.dropna(axis=0,inplace=True)
 
+
+# ========= Problem! =========
+# dfs2fit not quite what we want. It is flushed in each ij iteration 
+# and we only get the last one to make the pairplot
 fitted = np.zeros((8,8))
 for i,prop1 in enumerate(["cell-volume",*organelles,"non-organelle"]):
     for j,prop2 in enumerate(["cell-volume",*organelles,"non-organelle"]):
         dfs2fit = []
         for condi in [0,0.5,5,50,100,200]:
-            x_min,x_max = np.nanpercentile(df_glu_logs.loc[df_glu_logs["condition"].eq(condi),prop1].to_numpy(),[10,99])
-            # dfs2fit.append(df_glu_logs[df_glu_logs["condition"].eq(condi)&df_glu_logs[prop1].ge(x_min)&df_glu_logs[prop1].le(x_max)])
-            dfs2fit.append(df_glu_logs[df_glu_logs["condition"].eq(condi)&df_glu_logs[prop1].ge(2)])
+            dfs2fit.append(
+                df_glu_logs[
+                    df_glu_logs["condition"].eq(condi) & 
+                    df_glu_logs[prop1].ge(2)
+            ])
         dfs2fit = pd.concat(dfs2fit,ignore_index=True)
-        # fitted[i,j] = np.polyfit(dfs2fit[prop1],dfs2fit[prop2],1)[0]
         fitted[i,j] = LinearRegression().fit(dfs2fit[prop1].to_numpy().reshape(-1,1),dfs2fit[prop2]).coef_[0]
 np.savetxt("data/power_law/pairwise.txt",fitted)
 
@@ -935,11 +940,12 @@ sns.pairplot(
     data=dfs2fit,kind="reg",hue="condition",
     vars=["cell-volume",*organelles,"non-organelle"],
     palette=list(np.array(sns.color_palette("tab10"))[list_colors]),
-    plot_kws={"ci":None},
+    plot_kws={"ci":None},diag_kws={"fill":False},
     height=5.0
 )
 plt.savefig("data/power_law/pairwise_ge2.png")
 plt.close
+# ======= End Problem =========
 
 # generalize to other pairs of volumes, but only 100% glucose
 df_glu_logs = df_bycell.loc[df_bycell["folder"].eq("EYrainbow_glucose_largerBF") & df_bycell["organelle"].eq("ER") &df_bycell["condition"].eq(100.),["cell-volume"]]
