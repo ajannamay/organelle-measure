@@ -18,7 +18,7 @@ from organelle_measure.data import read_results
 sns.set_style("whitegrid")
 plt.rcParams['font.size'] = '18'
 list_colors = {
-    "glucose":     [1,2,3,4,0,5] ,
+    "glucose":     [1,2,3,4,0,5],
     "leucine":     [1,2,3,4,0],
     "cell size":   [1,0],
     "PKA pathway": [0,3,2,1],
@@ -221,7 +221,7 @@ for folder in df_entropies["folder"].unique():
     g.set_xticks(df_entropies.loc[df_entropies["folder"].eq(folder),"index"])
     g.set_xticklabels(df_entropies.loc[df_entropies["folder"].eq(folder),"condition"])
     plt.savefig(f'{Path("./data/mutual_information")}/KL-divergence_{folder}.png')
-    plt.clf()
+    plt.close()
 
 for folder in df_entropies["folder"].unique():
     plt.figure()
@@ -242,7 +242,7 @@ for folder in df_entropies["folder"].unique():
     plt.xlabel("condition")
     plt.ylabel("KL-divergence")
     plt.savefig(f'{Path("./data/mutual_information")}/KL-divergence_{folder}.png')
-    plt.clf()
+    plt.close()
 
 plt.figure()
 g = sns.scatterplot(
@@ -257,7 +257,7 @@ sns.scatterplot(
 plt.ylim(0,None)
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0)
 plt.savefig(f'{Path("./data/mutual_information")}/entropy_growthrate.png')
-plt.clf()
+plt.close()
 
 plt.figure()
 g = sns.scatterplot(
@@ -272,7 +272,7 @@ sns.scatterplot(
 plt.ylim(0,None)
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0)
 plt.savefig(f'{Path("./data/mutual_information")}/klDivergence_growthrate.png')
-plt.clf()
+plt.close()
 
 plt.figure()
 g = sns.scatterplot(
@@ -287,7 +287,7 @@ sns.scatterplot(
 plt.ylim(0,None)
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0)
 plt.savefig(f'{Path("./data/mutual_information")}/entropy_klDivergence.png')
-plt.clf()
+plt.close()
 
 plt.figure()
 g = sns.scatterplot(
@@ -302,7 +302,7 @@ sns.scatterplot(
 plt.ylim(0,None)
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0)
 plt.savefig(f'{Path("./data/mutual_information")}/klDivergence_entropy.png')
-plt.clf()
+plt.close()
 
 # glucose large experiment only:
 plt.rcParams['font.size'] = '18'
@@ -319,7 +319,7 @@ sns.scatterplot(
 )
 plt.ylim(0,None)
 plt.savefig(f'{Path("./data/mutual_information")}/entropy_klDivergence_glucose.png')
-plt.clf()
+plt.close()
 
 
 
@@ -573,7 +573,8 @@ for folder in subfolders:
         )
 
 # PCA 
-def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=False,non_organelle=False):
+def make_pca_plots(experiment,property,groups=None,has_volume=False,is_normalized=False,non_organelle=False):
+    folder = experiments[experiment]
     name = f"{'all-conditions' if groups is None else 'extremes'}_{'has-cytoplasm' if non_organelle else 'no-cytoplasm'}_{'cell-volume' if has_volume else 'organelle-only'}_{property}_{'norm-mean-std' if is_normalized else 'raw'}"
         
     df_orga_perfolder = df_bycell[df_bycell["folder"].eq(folder)]
@@ -597,7 +598,6 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
             df_pca[col] = (df_pca[col]-df_pca[col].mean())/df_pca[col].std()
     
     df_pca.reset_index(inplace=True)
-
 
     # Find the the direction of the condition change:
     df_centroid = df_pca.groupby("condition")[columns].mean()
@@ -693,6 +693,46 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
     ax.legend(loc=(1.04,0.5))
     figproj.savefig(f'{Path("./data/pca_projection_all")}/pca_projection3d_{folder}_{name}_pc{"".join([str(p) for p in pc2proj])}.png')
     plt.close(figproj)
+    # 3d projections, all conditions
+    for d,condi in enumerate(np.sort(df_pca["condition"].unique())):
+        if condi == groups[1]:
+            continue
+        figproj = plt.figure(figsize=(15,12))
+        ax = figproj.add_subplot(projection="3d")
+        
+        pc_x = df_pca.loc[df_pca["condition"].eq(groups[-1]),f"proj{pc2proj[0]}"],
+        pc_y = df_pca.loc[df_pca["condition"].eq(groups[-1]),f"proj{pc2proj[1]}"],
+        pc_z = df_pca.loc[df_pca["condition"].eq(groups[-1]),f"proj{pc2proj[2]}"],
+        ax.scatter(
+            pc_x, pc_y, pc_z,
+            edgecolor='white',facecolor=sns.color_palette('tab10')[list_colors[0]],
+            s=49,alpha=0.2,label=f"{groups[-1]}"
+        )
+        
+        pc_x = df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[0]}"],
+        pc_y = df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[1]}"],
+        pc_z = df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[2]}"],
+        ax.scatter(
+            pc_x, pc_y, pc_z,
+            edgecolor='white',facecolor=sns.color_palette('tab10')[list_colors[experiment][d]],# need to change the params
+            s=49,alpha=0.2,label=f"{condi}"
+        )
+        ax.set_xlabel(f"proj {pc2proj[0]}")
+        ax.set_ylabel(f"proj {pc2proj[1]}")
+        ax.set_zlabel(f"proj {pc2proj[2]}")
+        ax.xaxis.pane.set_edgecolor('black')
+        ax.yaxis.pane.set_edgecolor('black')
+        ax.zaxis.pane.set_edgecolor('black')
+        ax.xaxis.pane.fill = False
+        ax.yaxis.pane.fill = False
+        ax.zaxis.pane.fill = False
+        ax.set_xlim(*(np.percentile(df_pca_extremes[f"proj{pc2proj[0]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
+        ax.set_ylim(*(np.percentile(df_pca_extremes[f"proj{pc2proj[1]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
+        ax.set_zlim(*(np.percentile(df_pca_extremes[f"proj{pc2proj[2]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
+        ax.legend(loc=(1.04,0.5))
+        figproj.savefig(f'./data/pca_projection_all/pca_projection3d_{folder}_{name}_condi-{str(condi).replace(".","-")}_pc{"".join([str(p) for p in pc2proj])}.png')
+        plt.close(figproj)
+ 
     # 2d projections
     sns.set_style("whitegrid")
     for first,second in ((0,1),(0,2),(1,2)):
@@ -708,8 +748,26 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
             color=sns.color_palette("tab10")[0],s=49,alpha=0.5
         )
         sns_plot.figure.savefig(f'{Path("./data/pca_projection_all")}/pca_projection2d_{folder}_{name}_pc{pc2proj[first]}{pc2proj[second]}.png')
-        plt.clf()
-    
+        plt.close()
+    # 2d projections, all conditions
+    for d,condi in enumerate(np.sort(df_pca["condition"].unique())):
+        if condi == groups[1]:
+            continue
+        for first,second in ((0,1),(0,2),(1,2)):
+            sns_plot = sns.scatterplot(
+                data=df_pca[df_pca["condition"].eq(groups[1])],
+                x=f"proj{pc2proj[first]}",y=f"proj{pc2proj[second]}",
+                color=sns.color_palette("tab10")[0],s=49,alpha=0.5
+            )
+            sns_plot = sns.scatterplot(
+                data=df_pca[df_pca["condition"].eq(condi)],
+                x=f"proj{pc2proj[first]}",y=f"proj{pc2proj[second]}",
+                color=sns.color_palette("tab10")[1],s=49,alpha=0.5
+            )
+            sns_plot.figure.savefig(f'{Path("./data/pca_projection_all")}/pca_projection2d_{folder}_{name}condi-{str(condi).replace(".","-")}_pc{pc2proj[first]}{pc2proj[second]}.png')
+            plt.close()
+
+
     # draw with Plotly:
     figproj = go.Figure()
     for condi in pd.unique(df_pca["condition"]):
@@ -758,8 +816,8 @@ def make_pca_plots(folder,property,groups=None,has_volume=False,is_normalized=Fa
     figproj.write_html(f'{Path("./data/pca_projection_all")}/pca_projection3d_{folder}_{name}_pc{"".join([str(p) for p in pc2proj])}.html')
     return None
 
-for folder in extremes.keys():
-    make_pca_plots(folder,"total-fraction",groups=extremes[folder],has_volume=False,is_normalized=True,non_organelle=False)
+for experiment in experiments.keys():
+    make_pca_plots(experiment,"total-fraction",groups=extremes[folder],has_volume=False,is_normalized=True,non_organelle=False)
 
 
 df_trivial = pd.concat(
