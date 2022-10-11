@@ -431,6 +431,7 @@ df_bycondition.reset_index(inplace=True)
 df_bycell.set_index(["folder","condition"],inplace=True)
 df_bycell["growth_rate"] = df_rates["growth_rate"]
 df_bycell.reset_index(inplace=True)
+
 df_bycell.set_index(["folder","condition","field","idx-cell"],inplace=True)
 idx_fraction_bycell = df_bycell[df_bycell["organelle"].eq("ER")].index
 df_fraction_bycell  = pd.DataFrame(index=idx_fraction_bycell)
@@ -907,6 +908,7 @@ ax.legend()
 plt.savefig("data/power_law/power_law_rectangular.png")
 plt.close()
 
+
 # generalize to other pairs of volumes.
 df_glu_logs = df_bycell.loc[df_bycell["folder"].eq("EYrainbow_glucose_largerBF") & df_bycell["organelle"].eq("ER"),["condition","cell-volume"]]
 df_glu_logs = df_glu_logs.reset_index().drop("index",axis=1)
@@ -917,21 +919,48 @@ df_glu_logs.replace([np.inf, -np.inf], np.nan, inplace=True)
 df_glu_logs.dropna(axis=0,inplace=True)
 
 
-# ========= Problem! =========
-# dfs2fit not quite what we want. It is flushed in each ij iteration 
-# and we only get the last one to make the pairplot
 fitted = np.zeros((8,8))
-for i,prop1 in enumerate(["cell-volume",*organelles,"non-organelle"]):
-    for j,prop2 in enumerate(["cell-volume",*organelles,"non-organelle"]):
+plt.rcParams['font.size'] = '24'
+fig_pair,pairplots = plt.subplots(
+    nrows=8,ncols=8,
+    figsize=(50,40),
+    sharex=False,sharey=False
+)
+for i,prop1 in enumerate(["cell-volume",*organelles,"non-organelle"]): # row
+    for j,prop2 in enumerate(["cell-volume",*organelles,"non-organelle"]): # col
         dfs2fit = []
         for condi in [0,0.5,5,50,100,200]:
+            pct10 = np.percentile(
+                df_glu_logs.loc[
+                    df_glu_logs["condition"].eq(condi),prop2
+                ],
+                10
+            )
             dfs2fit.append(
                 df_glu_logs[
                     df_glu_logs["condition"].eq(condi) & 
-                    df_glu_logs[prop1].ge(2)
+                    df_glu_logs[prop2].ge(pct10)
             ])
         dfs2fit = pd.concat(dfs2fit,ignore_index=True)
-        fitted[i,j] = LinearRegression().fit(dfs2fit[prop1].to_numpy().reshape(-1,1),dfs2fit[prop2]).coef_[0]
+        fitted[i,j] = LinearRegression().fit(dfs2fit[prop2].to_numpy().reshape(-1,1),dfs2fit[prop1]).coef_[0]
+        for k,condi in enumerate([0,0.5,5,50,100,200]):
+            pairplots[i,j].scatter(
+                dfs2fit.loc[dfs2fit["condition"].eq(condi),prop2],
+                dfs2fit.loc[dfs2fit["condition"].eq(condi),prop1],
+                color=sns.color_palette("tab10")[list_colors[k]],
+                label=f"{condi/100*2}% glucose",
+                alpha=0.5,edgecolors='w'
+            )
+        xmin,xmax,xmean,ymean,k = dfs2fit[prop2].min(),dfs2fit[prop2].max(),dfs2fit[prop2].mean(),dfs2fit[prop1].mean(),fitted[i,j]
+        pairplots[i,j].plot(
+            [xmin,xmax],[k*(xmin-xmean)+ymean,k*(xmax-xmean)+ymean],
+            'k--'
+        )
+        if i==7:
+            pairplots[i,j].set_xlabel(f"log[V({prop2})]")
+        if j==0:
+            pairplots[i,j].set_ylabel(f"log[V({prop1})]")
+fig_pair.savefig("data/power_law/pairwise.png")
 np.savetxt("data/power_law/pairwise.txt",fitted)
 
 plt.rcParams['font.size'] = '24'
@@ -945,7 +974,7 @@ sns.pairplot(
 )
 plt.savefig("data/power_law/pairwise_ge2.png")
 plt.close
-# ======= End Problem =========
+
 
 # generalize to other pairs of volumes, but only 100% glucose
 df_glu_logs = df_bycell.loc[df_bycell["folder"].eq("EYrainbow_glucose_largerBF") & df_bycell["organelle"].eq("ER") &df_bycell["condition"].eq(100.),["cell-volume"]]
@@ -989,7 +1018,8 @@ for i,condi in enumerate(np.sort(df_glu_cyto_rate["condition"].unique())):
         df_glu_cyto_rate_bycondi.loc[df_glu_cyto_rate_bycondi["condition"].eq(condi),"total-fraction"],
         yerr=df_glu_cyto_rate_bycondi.loc[df_glu_cyto_rate_bycondi["condition"].eq(condi),"fraction-std"]/np.sqrt(len(df_glu_cyto_rate_bycondi)),
         color=sns.color_palette("tab10")[list_colors[i]],
-        label=f"{condi/100*2}% glucose",fmt='o',capsize=10,markersize=20
+        label=f"{condi/100*2}% glucose",
+        fmt='o',capsize=10,markersize=20,alpha=0.5
     )
     plt.ylim(0.,1.)
 plt.xlabel("Growth Rate")

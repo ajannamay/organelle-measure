@@ -194,6 +194,9 @@ for folder,stem in zip(df_meta['folder'],df_meta['file']):
 df_img = pd.concat(list_df)
 df_img.to_csv("data/spectra/spectra_images.csv",index=False)
 
+
+# Plot spectra:
+
 df_img = pd.read_csv("data/spectra/spectra_images.csv")
 df_exp = df_img.groupby(['experiment','organelle','wavelength']).mean()
 df_exp.reset_index(inplace=True)
@@ -249,4 +252,5 @@ for color in ['blue','red']:
             line=dict(dash="solid",shape="spline",color='red')
         )
     )
-    fig.write_html(f"{folder_o}/unmix_comparison_{color}.html")
+    fig.update_layout(template="simple_white")
+    fig.write_html(f"{folder_o}/white_unmix_comparison_{color}.html")
