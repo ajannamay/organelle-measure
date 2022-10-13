@@ -1100,11 +1100,7 @@ plt.close()
 
 
 # Plot segmentation error
-df_error = pd.read_csv("data/image_error_probability.csv")
-df_error["experiment"] = df_error["filename"].apply(lambda x:x.partition("/")[0])
-
-to_drop = df_error.loc[df_error["organelle"].eq("LD") & df_error["experiment"].eq("EYrainbow_glucose_largerBF"),"error_lower"].idxmax()
-df_error.drop(to_drop,inplace=True)
+df_error = pd.read_csv("data/image_error_probability_new.csv")
 
 summary_error = df_error.groupby(["organelle","experiment"]).mean()
 summary_error.reset_index(inplace=True)
