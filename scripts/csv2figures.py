@@ -17,7 +17,7 @@ from organelle_measure.data import read_results
 # Global Variables
 sns.set_style("whitegrid")
 plt.rcParams["figure.autolayout"]=True
-plt.rcParams['font.size'] = '20'
+plt.rcParams['font.size'] = '26'
 list_colors = {
     "glucose":     [1,2,3,4,0,5],
     "leucine":     [1,2,3,4,0],
@@ -94,7 +94,8 @@ df_corrcoef.reset_index(inplace=True)
 
 # Kullback–Leibler_divergence of different conditions
 df_entropies = []
-for folder in extremes.keys():
+for exp in exp_names:
+    folder = experiments[exp]
     num_bin = 4
     organelles_kl = [f"total-fraction-{orga}" for orga in organelles]
     df_kldiverge = df_corrcoef.loc[df_corrcoef["folder"].eq(folder),["condition",*organelles_kl]]
@@ -122,28 +123,7 @@ for folder in extremes.keys():
         probs += 10**(-20)
         probs = probs/np.sum(probs)
 
-        # # "corrected" code
-        # indices_ = np.array(list(map(
-        #                 lambda x: sum([xi*(num_bin)**i for i,xi in enumerate(x)]),
-        #                 np.transpose(posits)
-        #           )))
-        # indices = np.bincount(indices_)
-        # probs1 = np.zeros((num_bin)**len(organelles))
-        # probs1[:len(indices)] = indices
-        # probs1 += 10**(-20)
-        # probs1 = probs1/np.sum(probs1)
-
-        # # "old" code, could be wrong
-        # indices = np.array(list(map(
-        #                 lambda x: sum([xi*(num_bin+1)**i for i,xi in enumerate(x)]),
-        #                 np.transpose(posits)
-        #           )))
-        # indices = np.bincount(indices)
-        # probs2 = np.zeros((num_bin)**len(organelles))
-        # probs2[:len(indices)] = indices
-        # probs2 += 10**(-20)
-        # probs2 = probs2/np.sum(probs2)
-        
+       
         marginals = np.array([
             np.sum(
                 probs,
@@ -197,6 +177,7 @@ for folder in extremes.keys():
             )
         )
     df_entropy = pd.DataFrame({
+        "experiment": exp,
         "folder":     folder,
         "condition":  np.sort(df_kldiverge["condition"].unique()),
         "entropy":    entropy,
@@ -215,18 +196,18 @@ df_entropies = pd.concat(df_entropies,ignore_index=True)
 # KL divergence and info entropy
 
 for folder in df_entropies["folder"].unique():
-    plt.figure()
+    plt.figure(figsize=(20,12))
     g = sns.scatterplot(
         data=df_entropies[df_entropies["folder"].eq(folder)],
         x="index",y="KL_divergence",ci=None
     )
     g.set_xticks(df_entropies.loc[df_entropies["folder"].eq(folder),"index"])
     g.set_xticklabels(df_entropies.loc[df_entropies["folder"].eq(folder),"condition"])
-    plt.savefig(f'{Path("./data/mutual_information")}/KL-divergence_{folder}.png')
+    plt.savefig(f'data/mutual_information/KL-divergence_{folder}.png')
     plt.close()
 
 for folder in df_entropies["folder"].unique():
-    plt.figure()
+    plt.figure(figsize=(20,12))
     plt.scatter(
         x=df_entropies.loc[df_entropies["folder"].eq(folder),"index"],
         y=df_entropies.loc[df_entropies["folder"].eq(folder),"KL_divergence"],
@@ -243,10 +224,10 @@ for folder in df_entropies["folder"].unique():
     )
     plt.xlabel("condition")
     plt.ylabel("KL-divergence")
-    plt.savefig(f'{Path("./data/mutual_information")}/KL-divergence_{folder}.png')
+    plt.savefig(f'data/mutual_information/KL-divergence_{folder}.png')
     plt.close()
 
-plt.figure()
+plt.figure(figsize=(20,12))
 g = sns.scatterplot(
     data=df_entropies,
     x="growth_rate",y="entropy",hue="folder",marker="x"
@@ -258,10 +239,10 @@ sns.scatterplot(
 )
 plt.ylim(0,None)
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0)
-plt.savefig(f'{Path("./data/mutual_information")}/entropy_growthrate.png')
+plt.savefig(f'data/mutual_information/entropy_growthrate.png')
 plt.close()
 
-plt.figure()
+plt.figure(figsize=(20,12))
 g = sns.scatterplot(
     data=df_entropies,
     x="growth_rate",y="KL_divergence",hue="folder",marker="x"
@@ -273,25 +254,25 @@ sns.scatterplot(
 )
 plt.ylim(0,None)
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0)
-plt.savefig(f'{Path("./data/mutual_information")}/klDivergence_growthrate.png')
+plt.savefig(f'data/mutual_information/klDivergence_growthrate.png')
 plt.close()
 
-plt.figure()
+plt.figure(figsize=(11,6))
 g = sns.scatterplot(
     data=df_entropies,
-    x="KL_divergence",y="entropy",hue="folder",marker="x"
+    x="KL_divergence",y="entropy",hue="experiment",marker="x",s=60
 )
 sns.scatterplot(
     data=df_entropies,
-    x="KL_divergence_dummy",y="entropy_dummy",hue="folder",
-    marker="o",ax=g
+    x="KL_divergence_dummy",y="entropy_dummy",hue="experiment",
+    marker="o",ax=g,s=60
 )
 plt.ylim(0,None)
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0)
-plt.savefig(f'{Path("./data/mutual_information")}/entropy_klDivergence.png')
+plt.savefig(f'data/mutual_information/entropy_klDivergence.png')
 plt.close()
 
-plt.figure()
+plt.figure(figsize=(20,12))
 g = sns.scatterplot(
     data=df_entropies,
     x="entropy",y="KL_divergence",hue="folder",marker="x"
@@ -303,24 +284,25 @@ sns.scatterplot(
 )
 plt.ylim(0,None)
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0)
-plt.savefig(f'{Path("./data/mutual_information")}/klDivergence_entropy.png')
+plt.savefig(f'data/mutual_information/klDivergence_entropy.png')
 plt.close()
 
 # glucose large experiment only:
-plt.rcParams['font.size'] = '18'
-plt.figure(figsize=(12,10))
+plt.rcParams['font.size'] = '26'
+plt.figure(figsize=(15,10))
 g = sns.scatterplot(
     data=df_entropies[df_entropies["folder"].eq("EYrainbow_glucose_largerBF")],
     x="KL_divergence",y="entropy",hue="condition",marker="x",s=81,
-    palette=list(np.array(sns.color_palette("tab10"))[list_colors])
+    palette=list(np.array(sns.color_palette("tab10"))[list_colors["glucose"]])
 )
 sns.scatterplot(
     data=df_entropies[df_entropies["folder"].eq("EYrainbow_glucose_largerBF")],
     x="KL_divergence_dummy",y="entropy_dummy",hue="condition",
-    palette=list(np.array(sns.color_palette("tab10"))[list_colors]),marker="o",ax=g,s=81
+    palette=list(np.array(sns.color_palette("tab10"))[list_colors["glucose"]]),marker="o",ax=g,s=81
 )
 plt.ylim(0,None)
-plt.savefig(f'{Path("./data/mutual_information")}/entropy_klDivergence_glucose.png')
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0)
+plt.savefig(f'data/mutual_information/entropy_klDivergence_glucose.png')
 plt.close()
 
 
@@ -357,7 +339,8 @@ for folder in subfolders:
         fig.write_html(f'{Path("./data/mutual_information")}/{mx_name}_{folder}.html')
 
 
-    # Correlation coefficient
+# Correlation coefficient
+for folder in subfolders:
     np_corrcoef = df_corrcoef.loc[:,columns].to_numpy()
     corrcoef = np.corrcoef(np_corrcoef,rowvar=False)
     fig = px.imshow(
@@ -578,7 +561,8 @@ for folder in subfolders:
 def make_pca_plots(experiment,property,groups=None,has_volume=False,is_normalized=False,non_organelle=False):
     folder = experiments[experiment]
     name = f"{'all-conditions' if groups is None else 'extremes'}_{'has-cytoplasm' if non_organelle else 'no-cytoplasm'}_{'cell-volume' if has_volume else 'organelle-only'}_{property}_{'norm-mean-std' if is_normalized else 'raw'}"
-        
+    print("PCA Anaysis: ",folder,name)
+
     df_orga_perfolder = df_bycell[df_bycell["folder"].eq(folder)]
     df_orga_perfolder.set_index(["condition","field","idx-cell"],inplace=True)
     idx = df_orga_perfolder.groupby(["condition","field","idx-cell"]).count().index
@@ -615,13 +599,14 @@ def make_pca_plots(experiment,property,groups=None,has_volume=False,is_normalize
 
     vec_centroid = vec_centroid_ended - vec_centroid_start
     vec_centroid = vec_centroid/np.linalg.norm(vec_centroid)
-    # np.savetxt(f'{Path("./data/pca_data")}/condition-vector_{folder}_{name}.txt',vec_centroid)
+    np.savetxt(f'{Path("./data/pca_data")}/condition-vector_{folder}_{name}.txt',vec_centroid)
 
     # Get Principal Components (PCs)
     np_pca = df_pca[columns].to_numpy()
     pca = PCA(n_components=num_pc)
     pca.fit(np_pca)
     pca_components = pca.components_
+    pca_var_ratios = pca.explained_variance_ratio_
 
     # Calculate cos<condition,PCs>, and realign the PCs
     cosine_pca = np.dot(pca_components,vec_centroid)
@@ -629,36 +614,37 @@ def make_pca_plots(experiment,property,groups=None,has_volume=False,is_normalize
         if cosine_pca[c] < 0:
             pca_components[c] = -pca_components[c]
     cosine_pca = np.abs(cosine_pca)
-    # # save and plot PCs without sorting.
-    # np.savetxt(f'{Path("./data/pca_data")}/cosine_{folder}_{name}.txt',cosine_pca)
-    # np.savetxt(f'{Path("./data/pca_data")}/pca-components_{folder}_{name}.txt',pca_components)    
+    # save and plot PCs without sorting.
+    np.savetxt(f'data/pca_data/cosine_{folder}_{name}.txt',cosine_pca)
+    np.savetxt(f'data/pca_data/pca-components_{folder}_{name}.txt',pca_components)
+    np.savetxt(f'data/pca_data/pca-explained-ratio_{folder}_{name}.txt',pca_var_ratios)
     fig_components = px.imshow(
         pca_components,
         x=columns, y=[f"PC{i}" for i in range(num_pc)],
         color_continuous_scale="RdBu_r", color_continuous_midpoint=0
     )
-    # fig_components.write_html(f'{Path("./data/pca_data")}/pca_components_{folder}_{name}.html')
+    fig_components.write_html(f'data/pca_data/pca_components_{folder}_{name}.html')
 
     # Sort PCs according to the cosine
     arg_cosine = np.argsort(cosine_pca)[::-1]
     pca_components_sorted = pca_components[arg_cosine]
     # save and plot the PCs with sorting
-    # np.savetxt(f'{Path("./data/pca_compare")}/condition-sorted-index_{folder}_{name}.txt',arg_cosine)
-    # np.savetxt(f'{Path("./data/pca_compare")}/condition-sorted-cosine_{folder}_{name}.txt',cosine_pca[arg_cosine])
-    # np.savetxt(f'{Path("./data/pca_compare")}/condition-sorted-pca-components_{folder}_{name}.txt',pca_components_sorted)
+    np.savetxt(f'data/pca_compare/condition-sorted-index_{folder}_{name}.txt',arg_cosine)
+    np.savetxt(f'data/pca_compare/condition-sorted-cosine_{folder}_{name}.txt',cosine_pca[arg_cosine])
+    np.savetxt(f'data/pca_compare/condition-sorted-pca-components_{folder}_{name}.txt',pca_components_sorted)
     fig_components_sorted = px.imshow(
         pca_components_sorted,
         x=columns, y=[f"PC{i}" for i in arg_cosine],
         color_continuous_scale="RdBu_r", color_continuous_midpoint=0
     )
-    # fig_components_sorted.write_html(f'{Path("./data/pca_compare")}/condition-sorted-pca_components_{folder}_{name}.html')
+    fig_components_sorted.write_html(f'data/pca_compare/condition-sorted-pca_components_{folder}_{name}.html')
     # plot the cosine 
     plt.figure(figsize=(15,12))
     plt.barh(np.arange(num_pc),cosine_pca[arg_cosine[::-1]],align='center')
     plt.yticks(np.arange(num_pc),[f"PC{i}" for i in arg_cosine[::-1]])
     plt.xlabel(r"$cos\left<condition\ vector,PC\right>$")
     plt.title(f"{folder}")
-    # plt.savefig(f'{Path("./data/pca_compare")}/condition-sorted-cosine_{folder}_{name}.png')
+    plt.savefig(f'data/pca_compare/condition-sorted-cosine_{folder}_{name}.png')
     plt.close()
 
 
@@ -666,37 +652,35 @@ def make_pca_plots(experiment,property,groups=None,has_volume=False,is_normalize
     for i_pc in range(len(pca_components)):
         base = pca_components[i_pc]
         df_pca[f"proj{i_pc}"] = df_pca.apply(lambda x:np.dot(base,x.loc[columns]),axis=1)
-
     pc2proj = arg_cosine[:3]
-
     df_pca_extremes = df_pca.loc[df_pca["condition"].isin(groups)]
 
-    # # 3d projection
-    # figproj = plt.figure(figsize=(15,12))
-    # ax = figproj.add_subplot(projection="3d")
-    # for condi in groups[::-1]:
-    #     pc_x = df_pca_extremes.loc[df_pca_extremes["condition"].eq(condi),f"proj{pc2proj[0]}"],
-    #     pc_y = df_pca_extremes.loc[df_pca_extremes["condition"].eq(condi),f"proj{pc2proj[1]}"],
-    #     pc_z = df_pca_extremes.loc[df_pca_extremes["condition"].eq(condi),f"proj{pc2proj[2]}"],
-    #     ax.scatter(
-    #         pc_x, pc_y, pc_z,
-    #         s=49,alpha=0.2,label=f"{condi}"
-    #     )
-    # ax.set_xlabel(f"proj {pc2proj[0]}")
-    # ax.set_ylabel(f"proj {pc2proj[1]}")
-    # ax.set_zlabel(f"proj {pc2proj[2]}")
-    # ax.xaxis.pane.set_edgecolor('black')
-    # ax.yaxis.pane.set_edgecolor('black')
-    # ax.zaxis.pane.set_edgecolor('black')
-    # ax.xaxis.pane.fill = False
-    # ax.yaxis.pane.fill = False
-    # ax.zaxis.pane.fill = False
-    # ax.set_xlim(*(np.percentile(df_pca_extremes[f"proj{pc2proj[0]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
-    # ax.set_ylim(*(np.percentile(df_pca_extremes[f"proj{pc2proj[1]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
-    # ax.set_zlim(*(np.percentile(df_pca_extremes[f"proj{pc2proj[2]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
-    # ax.legend(loc=(1.04,0.5))
-    # figproj.savefig(f'{Path("./data/pca_projection_all")}/pca_projection3d_{folder}_{name}_pc{"".join([str(p) for p in pc2proj])}.png')
-    # plt.close(figproj)
+    # 3d projection
+    figproj = plt.figure(figsize=(15,12))
+    ax = figproj.add_subplot(projection="3d")
+    for condi in groups[::-1]:
+        pc_x = df_pca_extremes.loc[df_pca_extremes["condition"].eq(condi),f"proj{pc2proj[0]}"],
+        pc_y = df_pca_extremes.loc[df_pca_extremes["condition"].eq(condi),f"proj{pc2proj[1]}"],
+        pc_z = df_pca_extremes.loc[df_pca_extremes["condition"].eq(condi),f"proj{pc2proj[2]}"],
+        ax.scatter(
+            pc_x, pc_y, pc_z,
+            s=49,alpha=0.2,label=f"{condi}"
+        )
+    ax.set_xlabel(f"proj {pc2proj[0]}")
+    ax.set_ylabel(f"proj {pc2proj[1]}")
+    ax.set_zlabel(f"proj {pc2proj[2]}")
+    ax.xaxis.pane.set_edgecolor('black')
+    ax.yaxis.pane.set_edgecolor('black')
+    ax.zaxis.pane.set_edgecolor('black')
+    ax.xaxis.pane.fill = False
+    ax.yaxis.pane.fill = False
+    ax.zaxis.pane.fill = False
+    ax.set_xlim(*(np.percentile(df_pca_extremes[f"proj{pc2proj[0]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
+    ax.set_ylim(*(np.percentile(df_pca_extremes[f"proj{pc2proj[1]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
+    ax.set_zlim(*(np.percentile(df_pca_extremes[f"proj{pc2proj[2]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
+    ax.legend(loc=(1.04,1.0))
+    figproj.savefig(f'data/pca_projection_extremes/pca_projection3d_{folder}_{name}_pc{"".join([str(p) for p in pc2proj])}.png')
+    plt.close(figproj)
 
     # 3d projections, all conditions
     for d,condi in enumerate(np.sort(df_pca["condition"].unique())):
@@ -738,22 +722,22 @@ def make_pca_plots(experiment,property,groups=None,has_volume=False,is_normalize
         figproj.savefig(f'./data/pca_projection_all_plt/pca_projection3d_{folder}_{name}_condi-{str(condi).replace(".","-")}_pc{"".join([str(p) for p in pc2proj])}.png')
         plt.close(figproj)
  
-    # # 2d projections
-    # sns.set_style("whitegrid")
-    # for first,second in ((0,1),(0,2),(1,2)):
-    #     plt.figure(figsize=(15,12))
-    #     sns_plot = sns.scatterplot(
-    #         data=df_pca_extremes[df_pca_extremes["condition"].eq(groups[0])],
-    #         x=f"proj{pc2proj[first]}",y=f"proj{pc2proj[second]}",
-    #         color=sns.color_palette("tab10")[1],s=49,alpha=0.5
-    #     )
-    #     sns_plot = sns.scatterplot(
-    #         data=df_pca_extremes[df_pca_extremes["condition"].eq(groups[1])],
-    #         x=f"proj{pc2proj[first]}",y=f"proj{pc2proj[second]}",
-    #         color=sns.color_palette("tab10")[0],s=49,alpha=0.5
-    #     )
-    #     sns_plot.figure.savefig(f'{Path("./data/pca_projection_all")}/pca_projection2d_{folder}_{name}_pc{pc2proj[first]}{pc2proj[second]}.png')
-    #     plt.close()
+    # 2d projections
+    sns.set_style("whitegrid")
+    for first,second in ((0,1),(0,2),(1,2)):
+        plt.figure(figsize=(15,12))
+        sns_plot = sns.scatterplot(
+            data=df_pca_extremes[df_pca_extremes["condition"].eq(groups[0])],
+            x=f"proj{pc2proj[first]}",y=f"proj{pc2proj[second]}",
+            color=sns.color_palette("tab10")[1],s=49,alpha=0.5
+        )
+        sns_plot = sns.scatterplot(
+            data=df_pca_extremes[df_pca_extremes["condition"].eq(groups[1])],
+            x=f"proj{pc2proj[first]}",y=f"proj{pc2proj[second]}",
+            color=sns.color_palette("tab10")[0],s=49,alpha=0.5
+        )
+        sns_plot.figure.savefig(f'data/pca_projection_extremes/pca_projection2d_{folder}_{name}_pc{pc2proj[first]}{pc2proj[second]}.png')
+        plt.close()
 
     # 2d projections, all conditions
     for d,condi in enumerate(np.sort(df_pca["condition"].unique())):
@@ -771,6 +755,8 @@ def make_pca_plots(experiment,property,groups=None,has_volume=False,is_normalize
                 x=f"proj{pc2proj[first]}",y=f"proj{pc2proj[second]}",
                 color=sns.color_palette("tab10")[list_colors[experiment][d]],s=49,alpha=0.5
             )
+            plt.xlim(*(np.percentile(df_pca_extremes[f"proj{pc2proj[first]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
+            plt.ylim(*(np.percentile(df_pca_extremes[f"proj{pc2proj[second]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
             sns_plot.figure.savefig(f'{Path("./data/pca_projection_all_plt")}/pca_projection2d_{folder}_{name}_condi-{str(condi).replace(".","-")}_pc{pc2proj[first]}{pc2proj[second]}.png')
             plt.close()
 
@@ -826,23 +812,16 @@ for experiment in exp_names:
     make_pca_plots(experiment,"total-fraction",groups=extremes[experiments[experiment]],has_volume=False,is_normalized=True,non_organelle=False)
 
 
-df_trivial = pd.concat(
-    [
-        df_bycell.loc[df_bycell["folder"].eq(ex) & df_bycell["condition"].eq(extremes[ex][-1])] 
-        for ex in extremes.keys()
-    ],
-    ignore_index=True
-)
-
-
-
-dict_pc     = {}
-dict_cosine = {}
+dict_pc        = {}
+dict_cosine    = {}
+dict_var_ratio = {}
 for expm in exp_names: 
-    file_pc = Path("./data/pca_data")/f"pca-components_{experiments[expm]}_extremes_no-cytoplasm_organelle-only_total-fraction_norm-mean-std.txt"
-    file_cosine = Path("./data/pca_data")/f"cosine_{experiments[expm]}_extremes_no-cytoplasm_organelle-only_total-fraction_norm-mean-std.txt"
-    dict_pc[expm] = np.loadtxt(str(file_pc))
-    dict_cosine[expm] = np.loadtxt(str(file_cosine))
+    file_pc = f"data/pca_data/pca-components_{experiments[expm]}_extremes_no-cytoplasm_organelle-only_total-fraction_norm-mean-std.txt"
+    file_cosine = f"data/pca_data/cosine_{experiments[expm]}_extremes_no-cytoplasm_organelle-only_total-fraction_norm-mean-std.txt"
+    file_var_ratio = f"data/pca_data/pca-explained-ratio_{experiments[expm]}_extremes_no-cytoplasm_organelle-only_total-fraction_norm-mean-std.txt"
+    dict_pc[expm] = np.loadtxt(file_pc)
+    dict_cosine[expm] = np.loadtxt(file_cosine)
+    dict_var_ratio[expm] = np.loadtxt(file_var_ratio)
 
 # find PCs in different experiments most similar to glucose PCs
 dict_product = {}
@@ -876,15 +855,16 @@ for i0,expm0 in enumerate(exp_names):
     for i1,expm1 in enumerate(exp_names[i0:]):
         sq_products = np.zeros((6,6)) # hard-coded num of organelles
         for s0 in range(6):
-            for s1 in range(6):
-                sq_products[s0,s1] = dict_cosine[expm0][s0]*np.dot(dict_pc[expm0][s0],dict_pc[expm1][s1])*dict_cosine[expm1][s1]
+            for s1 in range(s0,6):
+                sq_products[s0,s1] = np.dot(dict_pc[expm0][s0],dict_pc[expm1][s1])/6
         sq_summary[i0,i0+i1] = np.sum(sq_products)
+        # sq_summary[i0,i0+i1] = np.dot(dict_cosine[expm0],dict_cosine[expm1])
 fig_summary = px.imshow(
     sq_summary.T,
     x=exp_names,y=exp_names,
     color_continuous_scale="RdBu_r",color_continuous_midpoint=0
 )
-fig_summary.write_html(f'{Path("./data/pca_compare")}/summary_transpose.html')
+fig_summary.write_html(f'{Path("./data/pca_compare")}/summary_asymmetric.html')
 
 
 # power law
@@ -894,50 +874,62 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# Shankar did not give me the glu-0.5 data
-df_tmp = df_bycell.loc[
-    df_bycell["folder"].eq("EYrainbow_glucose_largerBF")
-    &df_bycell["organelle"].eq("non-organelle")
-    &df_bycell["condition"].eq(0.5)
-    ,
-    ["total","cell-volume"]
-]
-df_tmp = np.log(df_tmp)
-df_tmp = df_tmp[df_tmp["total"]>2]
-df_tmp.to_csv(
-    'data/power_law/cellvolvscytovol_glucoselargerBF_0-5_loglog.csv',
-    header=False,index=False
-)
+# # Shankar did not give me the glu-0.5 data
+# df_tmp = df_bycell.loc[
+#     df_bycell["folder"].eq("EYrainbow_glucose_largerBF")
+#     &df_bycell["organelle"].eq("non-organelle")
+#     &df_bycell["condition"].eq(0.5)
+#     ,
+#     ["total","cell-volume"]
+# ]
+# df_tmp = np.log(df_tmp)
+# df_tmp = df_tmp[df_tmp["total"]>2]
+# df_tmp.to_csv(
+#     'data/power_law/cellvolvscytovol_glucoselargerBF_0-5_loglog.csv',
+#     header=False,index=False
+# )
 
-dfs = []
-for filepath in Path("data/power_law/").glob("*_loglog.csv"):
-    if "scambled" in filepath.stem:
-        print(filepath)
-        df_scambled = pd.read_csv(str(filepath),names=["log-Vcyto",r"log-Vcell"])
-        df_scambled.loc[df_scambled["log-Vcyto"].astype(str).str.contains("i"),"log-Vcyto"] = np.nan
-        df_scambled["log-Vcyto"] = df_scambled["log-Vcyto"].astype(float)
-        continue
-    df = pd.read_csv(str(filepath),names=["log-Vcyto",r"log-Vcell"])
-    condition = float(filepath.stem.partition("BF_")[2].partition("_")[0].replace('-','.'))
-    df.loc[df["log-Vcyto"].eq(-np.inf),"log-Vcyto"] = np.nan
-    df.loc[df["log-Vcyto"].astype(str).str.contains("i"),"log-Vcyto"] = np.nan
-    df["log-Vcyto"] = df["log-Vcyto"].astype(float)
-    df["condition"] = condition
-    dfs.append(df)
-dfs = pd.concat(dfs,ignore_index=True)
+# dfs = []
+# for filepath in Path("data/power_law/").glob("*_loglog.csv"):
+#     if "scambled" in filepath.stem:
+#         print(filepath)
+#         df_scambled = pd.read_csv(str(filepath),names=["log-Vcyto",r"log-Vcell"])
+#         df_scambled.loc[df_scambled["log-Vcyto"].astype(str).str.contains("i"),"log-Vcyto"] = np.nan
+#         df_scambled["log-Vcyto"] = df_scambled["log-Vcyto"].astype(float)
+#         continue
+#     df = pd.read_csv(str(filepath),names=["log-Vcyto",r"log-Vcell"])
+#     condition = float(filepath.stem.partition("BF_")[2].partition("_")[0].replace('-','.'))
+#     df.loc[df["log-Vcyto"].eq(-np.inf),"log-Vcyto"] = np.nan
+#     df.loc[df["log-Vcyto"].astype(str).str.contains("i"),"log-Vcyto"] = np.nan
+#     df["log-Vcyto"] = df["log-Vcyto"].astype(float)
+#     df["condition"] = condition
+#     dfs.append(df)
+# dfs = pd.concat(dfs,ignore_index=True)
+
+dfs = df_bycell.loc[df_bycell["folder"].eq("EYrainbow_glucose_largerBF") & df_bycell["organelle"].eq("ER"),["condition","cell-volume"]]
+dfs = dfs.reset_index().drop("index",axis=1)
+dfs["cell-volume"] = np.log(dfs["cell-volume"])
+for orga in [*organelles,"non-organelle"]:
+    dfs[orga] = np.log(df_bycell.loc[df_bycell["folder"].eq("EYrainbow_glucose_largerBF") & df_bycell["organelle"].eq(orga),"total"].reset_index().drop("index",axis=1))
+dfs.replace([np.inf, -np.inf], np.nan, inplace=True)
+dfs.dropna(axis=0,inplace=True)
+dfs = dfs[dfs['non-organelle']>2]
+df_scambled = dfs[dfs["condition"].eq(100)]
+df_scambled["cell-volume"] = np.random.permutation(df_scambled["cell-volume"])
+
 
 # Plot
-plt.rcParams['font.size'] = '18'
+plt.rcParams['font.size'] = '26'
 fig,ax = plt.subplots(figsize=(12,9))
 for i,condi in enumerate(np.sort(dfs["condition"].unique())):
-    print(i,condi,list_colors[i])
+    print(i,condi,list_colors["glucose"][i])
     # ax.axis("equal")
 
-    ax.set_xbound(2,7)
-    ax.set_ybound(3,7)
+    ax.set_xlim(2,7)
+    ax.set_ylim(3,7)
     ax.scatter(
-        x=dfs.loc[dfs["condition"].eq(condi),"log-Vcyto"],
-        y=dfs.loc[dfs["condition"].eq(condi),"log-Vcell"],
+        x=dfs.loc[dfs["condition"].eq(condi),"non-organelle"],
+        y=dfs.loc[dfs["condition"].eq(condi),"cell-volume"],
         label=f"{condi/100*2}% glucose",
         color=sns.color_palette("tab10")[list_colors["glucose"][i]],alpha=0.5,edgecolors='w'
     )
@@ -947,14 +939,14 @@ inlet.axis("equal")
 inlet.set_xbound(1.5,7.5)
 inlet.set_ybound(3,8)
 inlet.scatter(
-    x=df_scambled["log-Vcyto"],
-    y=df_scambled["log-Vcell"],
+    x=df_scambled["non-organelle"],
+    y=df_scambled["cell-volume"],
     label="scambled",
     color="grey",alpha=0.5,edgecolors='w'
 )
 ax.set_adjustable('datalim')
-x_min,x_max = dfs["log-Vcyto"].min(),dfs["log-Vcyto"].max()
-y_min,y_max = dfs["log-Vcell"].min(),dfs["log-Vcell"].max()
+x_min,x_max = dfs["non-organelle"].min(),dfs["non-organelle"].max()
+y_min,y_max = dfs["cell-volume"].min(),dfs["cell-volume"].max()
 ax.plot(
     [x_min,x_max],[y_min,y_min+(x_max-x_min)],"k--"
 )
@@ -963,56 +955,67 @@ ax.plot(
 )
 ax.set_xlabel(r"$log(V_{cyto})$")
 ax.set_ylabel(r"$log(V_{cell})$")
-ax.legend()
+# ax.legend()
 plt.savefig("data/power_law/power_law_rectangular.png")
 plt.close()
 
 
 # generalize to other pairs of volumes.
 def plot_loglog_vol(experiment):
-    df_glu_logs = df_bycell.loc[df_bycell["folder"].eq(experiments[exps]) & df_bycell["organelle"].eq("ER"),["condition","cell-volume"]]
-    df_glu_logs = df_glu_logs.reset_index().drop("index",axis=1)
-    df_glu_logs["cell-volume"] = np.log(df_glu_logs["cell-volume"])
+    df_loglogs = df_bycell.loc[df_bycell["folder"].eq(experiments[experiment]) & df_bycell["organelle"].eq("ER"),["condition","cell-volume"]]
+    df_loglogs = df_loglogs.reset_index().drop("index",axis=1)
+    df_loglogs["cell-volume"] = np.log(df_loglogs["cell-volume"])
     for orga in [*organelles,"non-organelle"]:
-        df_glu_logs[orga] = np.log(df_bycell.loc[df_bycell["folder"].eq(experiments[exps]) & df_bycell["organelle"].eq(orga),"total"].reset_index().drop("index",axis=1))
-    df_glu_logs.replace([np.inf, -np.inf], np.nan, inplace=True)
-    df_glu_logs.dropna(axis=0,inplace=True)
+        df_loglogs[orga] = np.log(df_bycell.loc[df_bycell["folder"].eq(experiments[experiment]) & df_bycell["organelle"].eq(orga),"total"].reset_index().drop("index",axis=1))
+    df_loglogs.replace([np.inf, -np.inf], np.nan, inplace=True)
+    df_loglogs.dropna(axis=0,inplace=True)
 
     fitted = np.zeros((8,8))
-    plt.rcParams['font.size'] = '24'
+    plt.rcParams['font.size'] = '26'
     fig_pair,pairplots = plt.subplots(
         nrows=8,ncols=8,
         figsize=(50,40),
         sharex=False,sharey=False
     )
 
-    uniq_conds = np.sort(df_glu_logs["condition"].unique())
+    uniq_conds = np.sort(df_loglogs["condition"].unique())
     for i,prop1 in enumerate(["cell-volume",*organelles,"non-organelle"]): # row
         for j,prop2 in enumerate(["cell-volume",*organelles,"non-organelle"]): # col
             dfs2fit = []
+            dfs2go  = []
+            pct10x = np.percentile(df_loglogs[prop2],10)
+            pct10y = np.percentile(df_loglogs[prop1],10)
+            print(i,j,pct10y,pct10x)
             for condi in uniq_conds:
-                pct10 = np.percentile(
-                    df_glu_logs.loc[
-                        df_glu_logs["condition"].eq(condi),prop2
-                    ],
-                    10
-                )
                 dfs2fit.append(
-                    df_glu_logs[
-                        df_glu_logs["condition"].eq(condi) & 
-                        df_glu_logs[prop2].ge(pct10)
+                    df_loglogs[
+                        df_loglogs["condition"].eq(condi) & 
+                        df_loglogs[prop2].ge(pct10x) &
+                        df_loglogs[prop1].ge(pct10y)
+                ])
+                dfs2go.append(
+                    df_loglogs[
+                        df_loglogs["condition"].eq(condi) & 
+                        (df_loglogs[prop2].le(pct10x) |
+                        df_loglogs[prop1].le(pct10y))
                 ])
             dfs2fit = pd.concat(dfs2fit,ignore_index=True)
+            dfs2go  = pd.concat(dfs2go, ignore_index=True)
             fitted[i,j] = LinearRegression().fit(dfs2fit[prop2].to_numpy().reshape(-1,1),dfs2fit[prop1]).coef_[0]
             for k,condi in enumerate(uniq_conds):
                 pairplots[i,j].scatter(
                     dfs2fit.loc[dfs2fit["condition"].eq(condi),prop2],
                     dfs2fit.loc[dfs2fit["condition"].eq(condi),prop1],
                     color=sns.color_palette("tab10")[list_colors[experiment][k]],
-                    label=f"{condi/100*2}% glucose",
+                    label=f"{experiment} {condi}",
                     alpha=0.5,edgecolors='w'
                 )
-            xmin,xmax,xmean,ymean,k = dfs2fit[prop2].min(),dfs2fit[prop2].max(),dfs2fit[prop2].mean(),dfs2fit[prop1].mean(),fitted[i,j]
+                pairplots[i,j].scatter(
+                    dfs2go.loc[dfs2go["condition"].eq(condi),prop2],
+                    dfs2go.loc[dfs2go["condition"].eq(condi),prop1],
+                    color='k',alpha=0.3*(k+1)/len(uniq_conds),edgecolors='w'
+                )
+            xmin,xmax,xmean,ymean,k = dfs2go[prop2].min(),dfs2fit[prop2].max(),dfs2fit[prop2].mean(),dfs2fit[prop1].mean(),fitted[i,j]
             pairplots[i,j].plot(
                 [xmin,xmax],[k*(xmin-xmean)+ymean,k*(xmax-xmean)+ymean],
                 'k--'
@@ -1024,6 +1027,7 @@ def plot_loglog_vol(experiment):
     pairplots[7,7].legend()
     fig_pair.savefig(f"data/power_law/pairwise_{experiment}.png")
     np.savetxt(f"data/power_law/pairwise_{experiment}.txt",fitted)
+    print(f"Pairwise log-log regression: {experiment}")
     return None
 
 for exps in exp_names:
@@ -1083,7 +1087,7 @@ for i,condi in enumerate(np.sort(df_glu_cyto_rate["condition"].unique())):
         df_glu_cyto_rate_bycondi.loc[df_glu_cyto_rate_bycondi["condition"].eq(condi),"growth_rate"],
         df_glu_cyto_rate_bycondi.loc[df_glu_cyto_rate_bycondi["condition"].eq(condi),"total-fraction"],
         yerr=df_glu_cyto_rate_bycondi.loc[df_glu_cyto_rate_bycondi["condition"].eq(condi),"fraction-std"]/np.sqrt(len(df_glu_cyto_rate_bycondi)),
-        color=sns.color_palette("tab10")[list_colors[i]],
+        color=sns.color_palette("tab10")[list_colors["glucose"][i]],
         label=f"{condi/100*2}% glucose",
         fmt='o',capsize=10,markersize=20,alpha=0.5
     )
@@ -1105,22 +1109,41 @@ df_error = pd.read_csv("data/image_error_probability_new.csv")
 summary_error = df_error.groupby(["organelle","experiment"]).mean()
 summary_error.reset_index(inplace=True)
 
-
-plt.figure(figsize=(15,12))
+plt.figure(figsize=(20,12))
+plt.rcParams['font.size'] = '26'
 bar_positions = {}
-for k,experiment in enumerate(experiments.keys()):
+for k,experiment in enumerate(exp_names):
     bar_positions = np.arange(6) + (k+1.5)/(len(exp_names)+2.)
     plt.bar(
         x=bar_positions,
         height=summary_error.loc[
             summary_error["experiment"].eq(experiments[experiment]),
             "error_upper"
-        ].values[[4,5,0,2,3,1]],
+        ].values[[4,5,0,2,3,1]]*100,
         width=1/(len(exp_names)+2.),
-        label="experiment"
+        label=experiment,
+        color=sns.color_palette('tab10')[k],
     )
-    plt.bar()
+    print(summary_error.loc[
+            summary_error["experiment"].eq(experiments[experiment]),
+            "organelle"
+        ].values[[4,5,0,2,3,1]])
+for k,experiment in enumerate(exp_names):
+    bar_positions = np.arange(6) + (k+1.5)/(len(exp_names)+2.)
+    plt.bar(
+        x=bar_positions,
+        height= -summary_error.loc[
+            summary_error["experiment"].eq(experiments[experiment]),
+            "error_lower"
+        ].values[[4,5,0,2,3,1]]*100,
+        width=1/(len(exp_names)+2.),
+        color=sns.color_palette('tab10')[k],
+        alpha=0.5
+    )
+plt.axhline(color='k')
+plt.xticks(np.arange(6)+0.5,organelles)
+plt.xlabel("Organelle")
+plt.ylabel("Segmentation Error / %")
+plt.legend(loc=(1.04,0.5))
+plt.savefig("data/image_error.png")
 
-df_error[df_error["experiment"].eq("EYrainbow_glucose_largerBF")&df_error["organelle"].eq("LD")]
-# 'EYrainbow_glucose_largerBF/LD_EYrainbow_glu-50_field-3'
-# does not have enough mito and LD data, will need to replot

@@ -26,8 +26,6 @@ def read_results(folder_i,subfolders,pixel_sizes,path_rate=None):
         
         dfs_cell.append(df_folder_cell)
         dfs_orga.append(df_folder_orga)
-
-
     df_cell_all = pd.concat(dfs_cell)
     df_orga_all = pd.concat(dfs_orga)
 
