@@ -1,3 +1,4 @@
+import scipy
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -7,7 +8,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from pathlib import Path
-from scipy.special import rel_entr
 from sklearn import metrics
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LinearRegression
@@ -155,10 +155,10 @@ for exp in exp_names:
     entropy_diff_dummy = []
     for condi in probabilities.keys():
         divergence.append(
-            np.sum(rel_entr(probabilities[condi],probabilities[normal]))
+            np.sum(scipy.special.rel_entr(probabilities[condi],probabilities[normal]))
         )
         dvgn_dummy.append(
-            np.sum(rel_entr(probs_dummy[condi],probabilities[normal]))
+            np.sum(scipy.special.rel_entr(probs_dummy[condi],probabilities[normal]))
         )
         entropy.append(
             np.sum(
@@ -1001,7 +1001,14 @@ def plot_loglog_vol(experiment):
                 ])
             dfs2fit = pd.concat(dfs2fit,ignore_index=True)
             dfs2go  = pd.concat(dfs2go, ignore_index=True)
-            fitted[i,j] = LinearRegression().fit(dfs2fit[prop2].to_numpy().reshape(-1,1),dfs2fit[prop1]).coef_[0]
+            # fitted[i,j] = LinearRegression().fit(dfs2fit[prop2].to_numpy().reshape(-1,1),dfs2fit[prop1]).coef_[0]
+            fitted[i,j] = scipy.odr.ODR(
+                    scipy.odr.Data(
+                        dfs2fit[prop2].to_numpy(),
+                        dfs2fit[prop1].to_numpy()
+                    ),
+                    scipy.odr.unilinear
+                ).run().beta[0]
             for k,condi in enumerate(uniq_conds):
                 pairplots[i,j].scatter(
                     dfs2fit.loc[dfs2fit["condition"].eq(condi),prop2],
@@ -1025,8 +1032,10 @@ def plot_loglog_vol(experiment):
             if j==0:
                 pairplots[i,j].set_ylabel(f"log[V({prop1})]")
     pairplots[7,7].legend()
-    fig_pair.savefig(f"data/power_law/pairwise_{experiment}.png")
-    np.savetxt(f"data/power_law/pairwise_{experiment}.txt",fitted)
+    # fig_pair.savefig(f"data/power_law/pairwise_{experiment}.png")
+    # np.savetxt(f"data/power_law/pairwise_{experiment}.txt",fitted)
+    fig_pair.savefig(f"data/power_law/symmetric_pairwise_{experiment}.png")
+    np.savetxt(f"data/power_law/symmetric_pairwise_{experiment}.txt",fitted)
     print(f"Pairwise log-log regression: {experiment}")
     return None
 
