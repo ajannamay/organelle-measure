@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
+from pathlib import Path
 from scipy import ndimage as ndi
-from skimage import morphology,measure,segmentation
+from skimage import io,morphology,measure,segmentation
 
 # BEGIN of ND2reader wrapper:
 from nd2reader import ND2Reader
@@ -26,13 +27,31 @@ def open_golgi(path):
         return np.mean(load_nd2_plane(str(path),frame="czyx",axes='t',idx=0).astype(int),axis=0,dtype=int)
     else:
         return load_nd2_plane(str(path),frame="zyx",axes='t',idx=0).astype(int)
+def open_mito(path):
+    if Path(path).ext == "nd2":
+        return load_nd2_plane(str(x),frame="zyx",axes='tc',idx=0).astype(int)
+    else:
+        img = io.imread(str(path))
+        img_raw = np.zeros([int(img.shape[0]/2),*img.shape[1:]],dtype=int)
+        for z in range(img_raw.shape[0]):
+            img_raw[z] = img[2*z]
+        return img_raw
+def open_LD(path):
+    if Path(path).ext == "nd2":
+        return load_nd2_plane(str(x),frame="zyx",axes='tc',idx=1).astype(int)
+    else:
+        img = io.imread(str(path))
+        img_raw = np.zeros([int(img.shape[0]/2),*img.shape[1:]],dtype=int)
+        for z in range(img_raw.shape[0]):
+            img_raw[z] = img[2*z+1]
+        return img_raw
 open_organelles = {
     "peroxisome":   lambda x: load_nd2_plane(str(x),frame="zyx",axes='tc',idx=0).astype(int),
     "vacuole":      lambda x: load_nd2_plane(str(x),frame="zyx",axes='tc',idx=1).astype(int),
     "ER":           lambda x: load_nd2_plane(str(x),frame="zyx",axes='t', idx=0).astype(int),
     "golgi":        open_golgi,
-    "mitochondria": lambda x: load_nd2_plane(str(x),frame="zyx",axes='tc',idx=0).astype(int),
-    "LD": lambda x: load_nd2_plane(str(x),frame="zyx",axes='tc',idx=1).astype(int)
+    "mitochondria": open_mito,
+    "LD":           open_LD
 }
 # END of organelle nd2 file opener
 

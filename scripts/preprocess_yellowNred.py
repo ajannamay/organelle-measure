@@ -31,13 +31,13 @@ list_out  = []
 list_orga = []
 for folder in list_folders:
     for path_cell in (Path("./data/cell")/folder).glob("*.tif"):
-        # path_yellow = Path("./data/raw")/folder/f"spectral-yellow_{path_cell.stem.partition('_')[2]}.nd2"
-        # path_golgi = Path("./data/preprocessed")/folder/f'golgi_{path_yellow.stem.partition("_")[2]}.tif'
+        path_yellow = Path("./data/raw")/folder/f"spectral-yellow_{path_cell.stem.partition('_')[2]}.nd2"
+        path_golgi = Path("./data/preprocessed")/folder/f'golgi_{path_yellow.stem.partition("_")[2]}.tif'
         
-        # list_in.append(path_yellow)
-        # list_cell.append(path_cell)
-        # list_out.append(path_golgi)
-        # list_orga.append("golgi")
+        list_in.append(path_yellow)
+        list_cell.append(path_cell)
+        list_out.append(path_golgi)
+        list_orga.append("golgi")
 
         if folder == "EYrainbow_leucine":
             path_red = Path("./data/raw")/folder/f"unmixed-red_{path_cell.stem.partition('_')[2]}.ome.tif"

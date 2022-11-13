@@ -27,13 +27,13 @@ folders = [
     "EYrainbow_leucine"
 ]
 folder_i = "./images/preprocessed/"
-fodler_o = "./images/labelled/"
+folder_o = "./images/labelled/"
 
 list_i = []
 list_o = []
 for folder in folders:
     for path_binary in (Path(folder_i)/folder).glob("probability_ER*.h5"):
-        path_output = (Path(fodler_o)/folder)/f"label-{path_binary.stem.partition('_')[2]}.tiff"
+        path_output = (Path(folder_o)/folder)/f"label-{path_binary.stem.partition('_')[2]}.tiff"
         list_i.append(path_binary)
         list_o.append(path_output)
 args = pd.DataFrame({
