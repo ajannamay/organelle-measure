@@ -114,8 +114,12 @@ It should be a `pandas.DataFrame`, whose columns are the keyword arguments to th
 1. Segment, label, and register cell masks:
     1. Every experiment other than "EYrainbow_leucine_large"
         - Script: `segment_cell.py`
-        - Inputs: ND2 int12(Y,X), `images/raw/{Experiment}/camera_EYrainbow_{experiment}-{condition}_field-{f}.nd2`
-        - Outputs: TIF uint16(Y,X) `images/cell/{Experiment}/binCell_EYrainbow_{experiment}-{condition}_field-{f}.tif`
+        - Inputs: bright field camera images of the cell boundaries.
+            - `int12(Y,X)`
+            - `images/raw/{Experiment}/camera_EYrainbow_{experiment}-{condition}_field-{f}.nd2`
+        - Outputs: label image of different cells, registered to the FOV of the confocal detector 
+            - `uint16(Y,X)`
+            - `images/cell/{Experiment}/binCell_EYrainbow_{experiment}-{condition}_field-{f}.tif`
     2. "EYrainbow_leucine_large":
         - Sum across different z slices of `spectral-green_*.nd2`.
         - Feed into ilastik.
@@ -123,37 +127,37 @@ It should be a `pandas.DataFrame`, whose columns are the keyword arguments to th
     1. peroxisome and vacuole:
         1. If not "EYrainbow_leucine_large"
             - Script: `preprocess_blue.py`
-            - Inputs: Unmixed ND2, 
+            - Inputs: Unmixed ND2 image of peroxisomes and vacuoles, as 2 channels in the same image
                 - `int12(2,Z,Y,X)`, 
                 - `images/raw/{Experiment}/unmixed-blue_EYrainbow_{experiment}-{condition}_field-{f}.nd2`
-            - Outputs: TIF
+            - Outputs: TIF labelled images of organelles, each organelle are saves in a separated image.
                 - `uint16(Z,Y,X)`
                 - `images/preprocessed/{Experiment}/{organelle}_EYrainbow_{experiment}-{condition}_field-{f}.tif`
         2. If "EYrainbow_leucine_large":
             - Script: `preprocess_blue_leucineLarge.py`
-            - Inputs: Unmixed ND2
+            - Inputs: Unmixed ND2 image of peroxisomes and vacuoles, having 2 channels in the same image
                 - `int12(2,Z,Y,X)`, 
                 - `images/raw/{Experiment}/unmixed-blue_EYrainbow_{experiment}-{condition}_field-{f}.nd2`
-            - Outputs: TIF
+            - Outputs: TIF labelled images of organelles, each organelle are saves in a separated image.
                 - `uint16(Z,Y,X)` 
                 - `images/preprocessed/{Experiment}/{organelle}_EYrainbow_{experiment}-{condition}_field-{f}.tif`
     2. ER
         - Script: `preprocess_green.py`
-        - Inputs: Unmixed ND2
+        - Inputs: ND2 confocal image of ER, single channel
             - `int12(Z,Y,X)`, 
             - `images/raw/{Experiment}/spectral-green_EYrainbow_{experiment}-{condition}_field-{f}.nd2`
-        - Outputs: TIF
+        - Outputs: TIF labelled image of ER, single channel
             - `uint16(Z,Y,X)` 
             - `images/preprocessed/{Experiment}/{organelle}_EYrainbow_{experiment}-{condition}_field-{f}.tif`
     3. Golgi, mitochondrion, lipid droplet
         - Script: `preprocess_yellowNred.py`
-        - Inputs: Unmixed ND2
+        - Inputs: ND2 raw images of golgi, unmixed ND2 image mitochondrion and lipid droplets, as 2 channels in the same image
             - `int12(Z,Y,X)`, 
             - `images/raw/{Experiment}/spectral-green_EYrainbow_{experiment}-{condition}_field-{f}.nd2`
-        - Outputs: TIF
+        - Outputs: TIF labelled images of the organelles, each organelle is a singel channel z-stack image.
             - `uint16(Z,Y,X)` 
             - `images/preprocessed/{Experiment}/{organelle}_EYrainbow_{experiment}-{condition}_field-{f}.tif`
-3. Segment organelle images, then export to simple segmentation and probability.
+3. Segment organelle images with `ilastik`, then export to simple segmentation and probability.
     - ilastik project files can be found at `data/ilastik`
     - Outputs:
         - Simple Segmentation: `uint8(Z,Y,X)`
