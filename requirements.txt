@@ -1,0 +1,7 @@
+numpy
+pandas
+matplotlib
+nd2reader
+h5py
+scikit-image
+scikit-learn
