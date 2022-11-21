@@ -22,10 +22,17 @@
     cd organelle-measure
     ```
 3. Install the package required by the scripts
-    ```bash
-    mkvirtualenv organelle    # if you want to run the project in an isolated environment 
-    pip install -e .
-    ```
+    - YeaZ requires `tensorflow=1.15`, which requires `python=3.6`, so I installed it in a separate environment:
+        ```bash
+        mkvirtualenv yeaz -p 3.6
+        pip install -r reqirements_yeaz.txt
+        ```
+    - the other parts can be installed in an environment with newer python 
+        ```bash
+        mkvirtualenv organelle    # if you want to run the project in an isolated environment 
+        pip install -r requirements.txt
+        pip install -e .
+        ```
 4. Start your IDE _in the proper directory_
 
     You can use any IDE you like. I use vscode, and it needs to be started in `organelle-measure/` folder for relative paths to work.
