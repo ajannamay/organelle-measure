@@ -16,7 +16,7 @@ if getattr(sys, 'frozen', False):
     path_weights  = os.path.join(sys._MEIPASS, 'unet/')
     
 else:
-    path_weights = '../organelle_measure/unet/'
+    path_weights = 'organelle_measure/unet/'
 
 def create_directory_if_not_exists(path):
     """

@@ -26,9 +26,11 @@ def segment_cells(path_in,path_out):
 
 list_in = []
 list_out = []
-for file_cell in Path("./images/raw/EYrainbowWhi5Up_betaEstrodiol").glob("camera*.nd2"):
+for f,file_cell in enumerate(Path("./images/raw/EYrainbowWhi5Up_betaEstrodiol").glob("camera*.nd2")):
+    if f>2:
+        break
     list_in.append(file_cell)
-    file_segm = Path("./images/cell/EYrainbowWhi5Up_betaEstrodiol_yeaz")/f"binCell-{file_cell.stem.partition('-')[2]}.tif"
+    file_segm = Path(".")/f"binCell-{file_cell.stem.partition('-')[2]}.tif"
     list_out.append(file_segm)
 args = pd.DataFrame({
     "path_in":  list_in,
