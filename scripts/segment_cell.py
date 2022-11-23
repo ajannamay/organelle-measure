@@ -4,6 +4,7 @@ from pathlib import Path
 from skimage import segmentation,measure,io,util
 from organelle_measure.yeaz import yeaz_preprocesses,yeaz_label
 from organelle_measure.tools import load_nd2_plane,batch_apply
+from organelle_measure.vars_allround1data import list_folders
 
 def segment_cells(path_in,path_out):
     img_i = load_nd2_plane(str(path_in),frame='yx',axes='t',idx=0)
@@ -26,12 +27,11 @@ def segment_cells(path_in,path_out):
 
 list_in = []
 list_out = []
-for f,file_cell in enumerate(Path("./images/raw/EYrainbowWhi5Up_betaEstrodiol").glob("camera*.nd2")):
-    if f>2:
-        break
-    list_in.append(file_cell)
-    file_segm = Path(".")/f"binCell-{file_cell.stem.partition('-')[2]}.tif"
-    list_out.append(file_segm)
+for folder in list_folders:
+    for file_cell in Path(f"./images/raw/{folder}").glob("camera*.nd2"):
+        list_in.append(file_cell)
+        file_segm = Path(f"./images/cell/{folder}")/f"binCell-{file_cell.stem.partition('-')[2]}.tif"
+        list_out.append(file_segm)
 args = pd.DataFrame({
     "path_in":  list_in,
     "path_out": list_out
