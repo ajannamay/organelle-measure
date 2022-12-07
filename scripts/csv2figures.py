@@ -309,7 +309,8 @@ plt.close()
 
 for folder in subfolders:
     # mutual information
-    columns = ['condition','effective-length','cell-area','cell-volume',*properties]
+    # columns = ['condition','effective-length','cell-area','cell-volume',*properties]
+    columns = ['effective-length','cell-area','cell-volume',*properties]
     digitized = {}
     for column in columns:
         digitized[column] = np.digitize(
@@ -348,7 +349,8 @@ for folder in subfolders:
             x=columns,y=columns,
             color_continuous_scale = "RdBu_r",range_color=[-1,1]
         )
-    fig.write_html(f'{Path("./data/correlation")}/corrcoef_{folder}.html')
+    # fig.write_html(f'{Path("./data/correlation")}/corrcoef_{folder}.html')
+    fig.write_html(f'{Path("./data/correlation")}/corrcoef-nocond_{folder}.html')
 
     for condi in df_corrcoef["condition"].unique():
         np_corrcoef = df_corrcoef.loc[df_corrcoef['condition']==condi,['effective-length','cell-area','cell-volume',*properties]].to_numpy()
@@ -358,7 +360,7 @@ for folder in subfolders:
                 x=columns,y=columns,
                 color_continuous_scale="RdBu_r",range_color=[-1,1]
             )
-        fig.write_html(f'{Path("./data/correlation")}/conditions/corrcoef_{folder}_{str(condi).replace(".","-")}.html')
+        fig.write_html(f'{Path("./data/correlation")}/conditions/corrcoef-nocond_{folder}_{str(condi).replace(".","-")}.html')
 
     # # Pairwise relation atlas, super slow!
     # fig_pair = sns.PairGrid(df_corrcoef,hue="condition",vars=['effective-length','cell-area','cell-volume',*properties],height=3.0)
