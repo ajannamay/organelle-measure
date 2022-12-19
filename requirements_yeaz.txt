@@ -1,3 +1,10 @@
+numpy
+pandas
+matplotlib
+nd2reader
+h5py
+scikit-image
+scikit-learn
 openpyxl==3.0.1
 Tensorflow==1.15.2
 Keras==2.3.1

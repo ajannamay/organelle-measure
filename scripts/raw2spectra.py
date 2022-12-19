@@ -106,7 +106,7 @@ for subfolder in subfolders:
             dict_meta["file"] = path_file.stem
             list_meta.append(dict_meta)
 df_meta = pd.concat([pd.DataFrame(meta,index=[m]) for m,meta in enumerate(list_meta)])
-df_meta.to_csv("notebooks/meta.csv",index=False)
+df_meta.to_csv("data/spectra/meta_normalized.csv",index=False)
 # The output has been modified to exclude those not suitable for spectrum plot.
 
 # Deal with blue channels of leucine large experiment.
@@ -155,7 +155,7 @@ df_benchmark.set_index(["organelle",'wavelength'],inplace=True)
 df_benchmark["norm"] = df_benchmark.loc[:,"intensity"]/df_benchmark_max.loc[:,'intensity']
 df_benchmark.reset_index(inplace=True)
 
-df_meta = pd.read_csv("notebooks/meta.csv")
+df_meta = pd.read_csv("data/spectra/meta_normalizd.csv")
 list_df = []
 for folder,stem in zip(df_meta['folder'],df_meta['file']):
     color = 'blue' if 'blue' in stem else 'red'
