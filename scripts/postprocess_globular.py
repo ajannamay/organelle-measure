@@ -32,9 +32,7 @@ folders = [
     # "EYrainbow_leucine_large",
     # "EYrainbow_leucine"
 ]
-organelles = ["peroxisome"
-# ,"LD","golgi"
-]
+organelles = ["peroxisome","LD","golgi"]
 folder_i = "./images/preprocessed/"
 fodler_o = "./images/labelled/"
 

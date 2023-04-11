@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from skimage import io,measure
-from organelle_measure.tools import batch_apply
+from batch_apply import batch_apply
 
 def parse_meta_organelle(name):
     """name is the stem of the ORGANELLE label image file."""
@@ -23,10 +23,13 @@ def parse_meta_organelle(name):
         "organelle":  organelle
     }
 
-def measure1organelle(path_in,path_cell,path_out):
+def measure1organelle(path_in,path_cell,path_out,metadata=None):
     # parse metadata from filename
     name = Path(path_in).stem
-    meta = parse_meta_organelle(name)
+    if metadata is None:
+        meta = parse_meta_organelle(name)
+    else:
+        meta = metadata
 
     img_orga = io.imread(str(path_in))
     img_cell = io.imread(str(path_cell))
@@ -120,16 +123,12 @@ for folder in subfolders:
 list_i = []
 list_c = []
 list_o = []
-err_i  = []
 
 for subfolder in subfolders:
     for path_c in (Path(folder_c)/subfolder).glob("*.tif"):
         for organelle in organelles:
             path_i = Path(folder_i)/subfolder/f"label-{organelle}_{path_c.stem.partition('_')[2]}.tiff"
             path_o = Path(folder_o)/subfolder/f"{organelle}_{path_c.stem.partition('_')[2]}.csv"
-
-            if not path_i.exists():
-                err_i.append(path_i)
 
             list_i.append(path_i)
             list_c.append(path_c)
