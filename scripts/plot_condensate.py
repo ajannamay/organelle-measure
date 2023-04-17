@@ -1,7 +1,9 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.linear_model import LinearRegression
+import statsmodels.api as sm
+# from sklearn.linear_model import LinearRegression
+
 
 folder = "data/condensate"
 
@@ -90,32 +92,52 @@ df_cell["condensate_fraction"] = df_cell["condensate_volume"]/df_cell["cell_volu
 plt.rcParams["figure.autolayout"]=True
 plt.rcParams['font.size'] = '24'
 
+lowess = sm.nonparametric.lowess
 
-
+x_data = df_cell.loc[:,"cell_volume"].values
+y_data = df_cell.loc[:,"condensate_fraction"].values
+xy_lowess = lowess(y_data,x_data,frac=1/3)
 plt.scatter(
     x=df_cell.loc[:,"cell_volume"],
     y=df_cell.loc[:,"condensate_fraction"],
     alpha=0.5, edgecolors='w'
 )
+plt.plot(xy_lowess[:,0],xy_lowess[:,1],c='k')
 plt.xlabel(r"$V_{cell}/\mu m^3$")
 plt.ylabel(r"$\varphi_{condensate}$")
 
+
+x_data = df_cell.loc[:,"cell_volume"]
+y_data = df_cell.loc[:,"vacuole_fraction"]
+xy_lowess = lowess(y_data,x_data,frac=1/3)
 plt.scatter(
     x=df_cell.loc[:,"cell_volume"],
     y=df_cell.loc[:,"vacuole_fraction"],
     alpha=0.5, edgecolors='w'
 )
+plt.plot(xy_lowess[:,0],xy_lowess[:,1],c='k')
 plt.xlabel(r"$V_{cell}/\mu m^3$")
 plt.ylabel(r"$\varphi_{vacuole}$")
+
 
 plt.scatter(
     x=df_cell.loc[:,"cell_volume"],
     y=df_cell.loc[:,"vacuole_fraction"] + df_cell.loc[:,"condensate_fraction"],
-    alpha=0.5, edgecolors='w', label=r'$\varphi_{vacuole}+\varphi_{condensate}$'
+    alpha=0.5, edgecolors='w', label=r'$+$'
 )
 plt.scatter(
     x=df_cell.loc[:,"cell_volume"],
     y=df_cell.loc[:,"vacuole_fraction"] - df_cell.loc[:,"condensate_fraction"],
-    alpha=0.5, edgecolors='w', label=r'$\varphi_{vacuole}-\varphi_{condensate}$'
+    alpha=0.5, edgecolors='w', label=r'$-$'
 )
+x_data = df_cell.loc[:,"cell_volume"]
+y_data = df_cell.loc[:,"vacuole_fraction"] + df_cell.loc[:,"condensate_fraction"]
+xy_lowess = lowess(y_data,x_data,frac=1/3)
+plt.plot(xy_lowess[:,0],xy_lowess[:,1],c='k')
+
+x_data = df_cell.loc[:,"cell_volume"]
+y_data = df_cell.loc[:,"vacuole_fraction"] - df_cell.loc[:,"condensate_fraction"]
+xy_lowess = lowess(y_data,x_data,frac=1/3)
+plt.plot(xy_lowess[:,0],xy_lowess[:,1],c='k')
+
 plt.legend()
