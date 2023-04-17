@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
 
 folder = "data/condensate"
 
@@ -86,24 +87,35 @@ df_cell["vacuole_fraction"]    = df_cell["vacuole_volume"]/df_cell["cell_volume"
 df_cell["condensate_fraction"] = df_cell["condensate_volume"]/df_cell["cell_volume"]
 
 
+plt.rcParams["figure.autolayout"]=True
+plt.rcParams['font.size'] = '24'
+
+
+
 plt.scatter(
     x=df_cell.loc[:,"cell_volume"],
     y=df_cell.loc[:,"condensate_fraction"],
     alpha=0.5, edgecolors='w'
 )
+plt.xlabel(r"$V_{cell}/\mu m^3$")
+plt.ylabel(r"$\varphi_{condensate}$")
+
 plt.scatter(
     x=df_cell.loc[:,"cell_volume"],
     y=df_cell.loc[:,"vacuole_fraction"],
     alpha=0.5, edgecolors='w'
 )
+plt.xlabel(r"$V_{cell}/\mu m^3$")
+plt.ylabel(r"$\varphi_{vacuole}$")
+
 plt.scatter(
     x=df_cell.loc[:,"cell_volume"],
     y=df_cell.loc[:,"vacuole_fraction"] + df_cell.loc[:,"condensate_fraction"],
-    alpha=0.5, edgecolors='w', label=r'$+$'
+    alpha=0.5, edgecolors='w', label=r'$\varphi_{vacuole}+\varphi_{condensate}$'
 )
 plt.scatter(
     x=df_cell.loc[:,"cell_volume"],
     y=df_cell.loc[:,"vacuole_fraction"] - df_cell.loc[:,"condensate_fraction"],
-    alpha=0.5, edgecolors='w', label=r'$-$'
+    alpha=0.5, edgecolors='w', label=r'$\varphi_{vacuole}-\varphi_{condensate}$'
 )
 plt.legend()
