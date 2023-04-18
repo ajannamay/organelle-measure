@@ -5,6 +5,7 @@ import statsmodels.api as sm
 # from sklearn.linear_model import LinearRegression
 
 
+# Data Reading
 folder = "data/condensate"
 
 px_x,px_y,px_z = 0.1083333, 0.1083333, 0.2
@@ -70,6 +71,8 @@ df_cell_vacuole    = pd.concat(buffer_cell_vacuole,   ignore_index=True)
 df_cell_condensate = pd.concat(buffer_cell_condensate,ignore_index=True)
 df_organelle = pd.concat(buffer_organelle,ignore_index=True)
 
+
+# Further Calculation
 assert df_cell_vacuole.equals(df_cell_condensate), "inconsistent cell properties from different organelles data sources."
 df_cell = df_cell_vacuole
 df_cell = df_cell.copy()
@@ -89,6 +92,7 @@ df_cell["vacuole_fraction"]    = df_cell["vacuole_volume"]/df_cell["cell_volume"
 df_cell["condensate_fraction"] = df_cell["condensate_volume"]/df_cell["cell_volume"]
 
 
+# Plot
 plt.rcParams["figure.autolayout"]=True
 plt.rcParams['font.size'] = '24'
 
@@ -96,7 +100,7 @@ lowess = sm.nonparametric.lowess
 
 x_data = df_cell.loc[:,"cell_volume"].values
 y_data = df_cell.loc[:,"condensate_fraction"].values
-xy_lowess = lowess(y_data,x_data,frac=1/3)
+xy_lowess = lowess(y_data,x_data,frac=1)
 plt.scatter(
     x=df_cell.loc[:,"cell_volume"],
     y=df_cell.loc[:,"condensate_fraction"],
@@ -105,11 +109,12 @@ plt.scatter(
 plt.plot(xy_lowess[:,0],xy_lowess[:,1],c='k')
 plt.xlabel(r"$V_{cell}/\mu m^3$")
 plt.ylabel(r"$\varphi_{condensate}$")
+plt.ylim([0,0.25])
 
 
 x_data = df_cell.loc[:,"cell_volume"]
 y_data = df_cell.loc[:,"vacuole_fraction"]
-xy_lowess = lowess(y_data,x_data,frac=1/3)
+xy_lowess = lowess(y_data,x_data,frac=1)
 plt.scatter(
     x=df_cell.loc[:,"cell_volume"],
     y=df_cell.loc[:,"vacuole_fraction"],
@@ -118,26 +123,36 @@ plt.scatter(
 plt.plot(xy_lowess[:,0],xy_lowess[:,1],c='k')
 plt.xlabel(r"$V_{cell}/\mu m^3$")
 plt.ylabel(r"$\varphi_{vacuole}$")
+plt.ylim([0,0.3])
 
 
 plt.scatter(
     x=df_cell.loc[:,"cell_volume"],
     y=df_cell.loc[:,"vacuole_fraction"] + df_cell.loc[:,"condensate_fraction"],
-    alpha=0.5, edgecolors='w', label=r'$+$'
+    alpha=0.5, edgecolors='w'
 )
 plt.scatter(
     x=df_cell.loc[:,"cell_volume"],
     y=df_cell.loc[:,"vacuole_fraction"] - df_cell.loc[:,"condensate_fraction"],
-    alpha=0.5, edgecolors='w', label=r'$-$'
+    alpha=0.5, edgecolors='w'
 )
 x_data = df_cell.loc[:,"cell_volume"]
 y_data = df_cell.loc[:,"vacuole_fraction"] + df_cell.loc[:,"condensate_fraction"]
-xy_lowess = lowess(y_data,x_data,frac=1/3)
-plt.plot(xy_lowess[:,0],xy_lowess[:,1],c='k')
+xy_lowess = lowess(y_data,x_data,frac=1)
+plt.plot(xy_lowess[:,0],xy_lowess[:,1],c='k',linestyle='--')
 
 x_data = df_cell.loc[:,"cell_volume"]
 y_data = df_cell.loc[:,"vacuole_fraction"] - df_cell.loc[:,"condensate_fraction"]
-xy_lowess = lowess(y_data,x_data,frac=1/3)
-plt.plot(xy_lowess[:,0],xy_lowess[:,1],c='k')
+x_data = x_data[y_data>0].values
+y_data = y_data[y_data>0].values
+xy_lowess = lowess(y_data,x_data,frac=1)
+plt.plot(xy_lowess[:,0],xy_lowess[:,1],c='k',linestyle='-')
 
+plt.xlabel(r"$V_{cell}/\mu m^3$")
+plt.ylabel(r"$\varphi$")
+plt.xlim([0,400])
+plt.ylim([0,0.3])
+plt.plot([],[],color='tab:blue',  marker='o',linestyle='--',label=r'vacuole$+$condensate')
+plt.plot([],[],color='tab:orange',marker='o',linestyle='-', label=r'vacuole$-$condensate')
 plt.legend()
+# plt.legend((1.04,1.0))
