@@ -92,15 +92,21 @@ df_cell["vacuole_fraction"]    = df_cell["vacuole_volume"]/df_cell["cell_volume"
 df_cell["condensate_fraction"] = df_cell["condensate_volume"]/df_cell["cell_volume"]
 
 
+# df_cell.reset_index(inplace=True)
+# df_cell.to_csv("data/condensate/overall.csv",index=False)
+# df_cell.to_csv("data/condensate/organelles.csv",index=False)
+
+
 # Plot
 plt.rcParams["figure.autolayout"]=True
-plt.rcParams['font.size'] = '24'
+plt.rcParams['font.size'] = '20'
 
 lowess = sm.nonparametric.lowess
 
 x_data = df_cell.loc[:,"cell_volume"].values
 y_data = df_cell.loc[:,"condensate_fraction"].values
 xy_lowess = lowess(y_data,x_data,frac=1)
+plt.figure(figsize=(10,8))
 plt.scatter(
     x=df_cell.loc[:,"cell_volume"],
     y=df_cell.loc[:,"condensate_fraction"],
@@ -108,13 +114,15 @@ plt.scatter(
 )
 plt.plot(xy_lowess[:,0],xy_lowess[:,1],c='k')
 plt.xlabel(r"$V_{cell}/\mu m^3$")
-plt.ylabel(r"$\varphi_{condensate}$")
+plt.ylabel(r"$\phi_{condensate}$")
 plt.ylim([0,0.25])
+plt.savefig("data/condensate/fraction-condensate_cell-vol.png")
 
 
 x_data = df_cell.loc[:,"cell_volume"]
 y_data = df_cell.loc[:,"vacuole_fraction"]
 xy_lowess = lowess(y_data,x_data,frac=1)
+plt.figure(figsize=(10,8))
 plt.scatter(
     x=df_cell.loc[:,"cell_volume"],
     y=df_cell.loc[:,"vacuole_fraction"],
@@ -122,10 +130,11 @@ plt.scatter(
 )
 plt.plot(xy_lowess[:,0],xy_lowess[:,1],c='k')
 plt.xlabel(r"$V_{cell}/\mu m^3$")
-plt.ylabel(r"$\varphi_{vacuole}$")
+plt.ylabel(r"$\phi_{vacuole}$")
 plt.ylim([0,0.3])
+plt.savefig("data/condensate/fraction-vacuole_cell-vol.png")
 
-
+plt.figure(figsize=(10,8))
 plt.scatter(
     x=df_cell.loc[:,"cell_volume"],
     y=df_cell.loc[:,"vacuole_fraction"] + df_cell.loc[:,"condensate_fraction"],
@@ -136,6 +145,7 @@ plt.scatter(
     y=df_cell.loc[:,"vacuole_fraction"] - df_cell.loc[:,"condensate_fraction"],
     alpha=0.5, edgecolors='w'
 )
+
 x_data = df_cell.loc[:,"cell_volume"]
 y_data = df_cell.loc[:,"vacuole_fraction"] + df_cell.loc[:,"condensate_fraction"]
 xy_lowess = lowess(y_data,x_data,frac=1)
@@ -149,10 +159,45 @@ xy_lowess = lowess(y_data,x_data,frac=1)
 plt.plot(xy_lowess[:,0],xy_lowess[:,1],c='k',linestyle='-')
 
 plt.xlabel(r"$V_{cell}/\mu m^3$")
-plt.ylabel(r"$\varphi$")
+plt.ylabel(r"$\phi$")
 plt.xlim([0,400])
 plt.ylim([0,0.3])
 plt.plot([],[],color='tab:blue',  marker='o',linestyle='--',label=r'vacuole$+$condensate')
 plt.plot([],[],color='tab:orange',marker='o',linestyle='-', label=r'vacuole$-$condensate')
 plt.legend()
 # plt.legend((1.04,1.0))
+plt.savefig("data/condensate/fraction-vacuole-plus-minus-condensate-above0_cell-vol.png")
+
+
+# Reproduce Deepthi's plots
+plt.figure(figsize=(10,8))
+plt.scatter(
+    x=df_cell.loc[df_cell["condensate_fraction"]<=0.01,"cell_volume"],
+    y=df_cell.loc[df_cell["condensate_fraction"]<=0.01,"vacuole_fraction"],
+    alpha=0.5, edgecolors='w'
+)
+plt.scatter(
+    x=df_cell.loc[df_cell["condensate_fraction"]>0.01,"cell_volume"],
+    y=df_cell.loc[df_cell["condensate_fraction"]>0.01,"vacuole_fraction"],
+    alpha=0.5, edgecolors='w'
+)
+
+x_data = df_cell.loc[df_cell["condensate_fraction"]<=0.01,"cell_volume"]
+y_data = df_cell.loc[df_cell["condensate_fraction"]<=0.01,"vacuole_fraction"]
+xy_lowess = lowess(y_data,x_data,frac=1)
+plt.plot(xy_lowess[:,0],xy_lowess[:,1],c='k',linestyle='--')
+
+x_data = df_cell.loc[df_cell["condensate_fraction"]>0.01,"cell_volume"]
+y_data = df_cell.loc[df_cell["condensate_fraction"]>0.01,"vacuole_fraction"]
+xy_lowess = lowess(y_data,x_data,frac=1)
+plt.plot(xy_lowess[:,0],xy_lowess[:,1],c='k',linestyle='-')
+
+plt.xlabel(r"$V_{cell}/\mu m^3$")
+plt.ylabel(r"$\phi_{vacuole}$")
+plt.xlim([0,400])
+plt.ylim([0,0.3])
+plt.plot([],[],color='tab:blue',  marker='o',linestyle='--',label=r'$\phi_{condensate} \leq 1\%$')
+plt.plot([],[],color='tab:orange',marker='o',linestyle='-', label=r'$\phi_{condensate} > 1\%$')
+plt.legend()
+# plt.legend((1.04,1.0))
+plt.savefig("data/condensate/vacuole-high-low-condensate_cell-vol.png")
