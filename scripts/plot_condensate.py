@@ -76,13 +76,15 @@ df_organelle = pd.concat(buffer_organelle,ignore_index=True)
 assert df_cell_vacuole.equals(df_cell_condensate), "inconsistent cell properties from different organelles data sources."
 df_cell = df_cell_vacuole
 df_cell = df_cell.copy()
-df_cell = df_cell.loc[df_cell["cell_area"].gt(200),:]
+# df_cell = df_cell.loc[df_cell["cell_area"].gt(200),:]
 
 df_cell.set_index(["fov","cell_idx"],inplace=True)
 
 df_cell.loc[:,"cell_volume"] = 2 * (np.sqrt(df_cell.loc[:,"cell_area"] * pixel))**3/np.sqrt(np.pi)
 df_cell.loc[:,"vacuole_volume"] = df_organelle.loc[df_organelle["organelle_name"].eq("vacuole"),:].groupby(["fov","cell_idx"]).sum()["organelle_vol"]
 df_cell.loc[:,"condensate_volume"] = df_organelle.loc[df_organelle["organelle_name"].eq("condensate"),:].groupby(["fov","cell_idx"]).sum()["organelle_vol"] * voxel
+
+df_cell = df_cell.loc[df_cell["cell_volume"].gt(30),:]
 
 df_cell["vacuole_volume"].fillna(0.,inplace=True)
 df_cell["condensate_volume"].fillna(0.,inplace=True)
