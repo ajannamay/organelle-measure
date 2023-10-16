@@ -15,7 +15,6 @@ from organelle_measure.data import read_results
 
 
 # Global Variables
-sns.set_style("whitegrid")
 plt.rcParams["figure.autolayout"]=True
 plt.rcParams['font.size'] = '26'
 list_colors = {
@@ -307,10 +306,11 @@ plt.close()
 
 
 
+columns = ['effective-length','cell-area','cell-volume',*properties]
+
 for folder in subfolders:
     # mutual information
     # columns = ['condition','effective-length','cell-area','cell-volume',*properties]
-    columns = ['effective-length','cell-area','cell-volume',*properties]
     digitized = {}
     for column in columns:
         digitized[column] = np.digitize(
@@ -342,7 +342,7 @@ for folder in subfolders:
 
 # Correlation coefficient
 for folder in subfolders:
-    np_corrcoef = df_corrcoef.loc[:,columns].to_numpy()
+    np_corrcoef = df_corrcoef.loc[df_corrcoef["folder"].eq(folder),columns].to_numpy()
     corrcoef = np.corrcoef(np_corrcoef,rowvar=False)
     fig = px.imshow(
             corrcoef,
@@ -352,15 +352,15 @@ for folder in subfolders:
     # fig.write_html(f'{Path("./data/correlation")}/corrcoef_{folder}.html')
     fig.write_html(f'{Path("./data/correlation")}/corrcoef-nocond_{folder}.html')
 
-    for condi in df_corrcoef["condition"].unique():
-        np_corrcoef = df_corrcoef.loc[df_corrcoef['condition']==condi,['effective-length','cell-area','cell-volume',*properties]].to_numpy()
+    for condi in df_corrcoef.loc[df_corrcoef["folder"].eq(folder),"condition"].unique():
+        np_corrcoef = df_corrcoef.loc[(df_corrcoef["folder"].eq(folder) & df_corrcoef['condition'].eq(condi)),columns].to_numpy()
         corrcoef = np.corrcoef(np_corrcoef,rowvar=False)
         fig = px.imshow(
                 corrcoef,
                 x=columns,y=columns,
                 color_continuous_scale="RdBu_r",range_color=[-1,1]
             )
-        fig.write_html(f'{Path("./data/correlation")}/conditions/corrcoef-nocond_{folder}_{str(condi).replace(".","-")}.html')
+        fig.write_html(f'{Path("./data/correlation")}/groupby_conditions/corrcoef-nocond_{folder}_{str(condi).replace(".","-")}.html')
 
     # # Pairwise relation atlas, super slow!
     # fig_pair = sns.PairGrid(df_corrcoef,hue="condition",vars=['effective-length','cell-area','cell-volume',*properties],height=3.0)
@@ -1103,14 +1103,41 @@ for i,condi in enumerate(np.sort(df_glu_cyto_rate["condition"].unique())):
         fmt='o',capsize=10,markersize=20,alpha=0.5
     )
     plt.ylim(0.,1.)
-plt.xlabel("Growth Rate")
-plt.ylabel("Cytoplasmic Volume Fraction")
-ax_cyto_rate = plt.gca()
-handles, labels = ax_cyto_rate.get_legend_handles_labels()
-handles = [h[0] if isinstance(h, container.ErrorbarContainer) else h for h in handles]
-ax_cyto_rate.legend(handles, labels)
+plt.xlabel("Growth Rate (hour$^{-1}$)")
+plt.ylabel(r"Cytoplasmic Volume Fraction")
+# ax_cyto_rate = plt.gca()
+# handles, labels = ax_cyto_rate.get_legend_handles_labels()
+# handles = [h[0] if isinstance(h, container.ErrorbarContainer) else h for h in handles]
+# ax_cyto_rate.legend(handles, labels)
 plt.tight_layout()
 plt.savefig("data/power_law/cytofraction_vs_growthrate_sem.png")
+plt.close()
+
+# Errorbar plot of V_vacuole vs. growth rate
+df_glu_vacu_rate = df_bycell.loc[df_bycell["folder"].eq("EYrainbow_glucose_largerBF")&df_bycell["organelle"].eq("vacuole")]
+df_glu_vacu_rate_bycondi = df_glu_vacu_rate.groupby("condition").mean()
+df_glu_vacu_rate_bycondi["fraction-std"] = df_glu_vacu_rate.groupby("condition").std()["total-fraction"]
+df_glu_vacu_rate_bycondi.reset_index(inplace=True)
+
+plt.figure(figsize=(12,10))
+for i,condi in enumerate(np.sort(df_glu_vacu_rate["condition"].unique())):
+    plt.errorbar(
+        df_glu_vacu_rate_bycondi.loc[df_glu_vacu_rate_bycondi["condition"].eq(condi),"growth_rate"],
+        df_glu_vacu_rate_bycondi.loc[df_glu_vacu_rate_bycondi["condition"].eq(condi),"total-fraction"],
+        yerr=df_glu_vacu_rate_bycondi.loc[df_glu_vacu_rate_bycondi["condition"].eq(condi),"fraction-std"]/np.sqrt(len(df_glu_vacu_rate_bycondi)),
+        color=sns.color_palette("tab10")[list_colors["glucose"][i]],
+        label=f"{condi/100*2}% glucose",
+        fmt='o',capsize=10,markersize=20,alpha=0.5
+    )
+    plt.ylim(0.,0.2)
+plt.xlabel("Growth Rate (hour$^{-1}$)")
+plt.ylabel("Vacuole Volume Fraction")
+# ax_cyto_rate = plt.gca()
+# handles, labels = ax_cyto_rate.get_legend_handles_labels()
+# handles = [h[0] if isinstance(h, container.ErrorbarContainer) else h for h in handles]
+# ax_cyto_rate.legend(handles, labels)
+plt.tight_layout()
+plt.savefig("data/power_law/vacuole_fraction_vs_growthrate_sem.png")
 plt.close()
 
 
