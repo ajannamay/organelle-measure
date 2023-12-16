@@ -1,20 +1,17 @@
 
 # -*- coding: utf-8 -*-
-"""
-Created on Sat Dec 21 18:54:10 2019
-
-"""
 import os
 import sys
-from .model import unet
+from .model_pytorch import UNet
+# from model_tensorflow import unet
 import numpy as np
 import skimage
 from skimage import io
 import skimage.transform as trans
+import torch
 
 if getattr(sys, 'frozen', False):
-    path_weights  = os.path.join(sys._MEIPASS, 'unet/')
-    
+    path_weights  = os.path.join(sys._MEIPASS, 'unet/')    
 else:
     path_weights = 'organelle_measure/unet/'
 
@@ -45,8 +42,13 @@ def threshold(im,th = None):
     bi[bi <= th] = 0
     return bi
 
+import gc
+def report_gpu():
+    gc.collect()
+    torch.cuda.empty_cache()
+    print('Memory allocated: ', torch.cuda.memory_allocated())
 
-def prediction(im, is_pc):
+def prediction(im, mic_type, pretrained_weights=None, model_type='pytorch', device=None):
     """
     Calculate the prediction of the label corresponding to image im
     Param:
@@ -60,22 +62,60 @@ def prediction(im, is_pc):
     col_add = 16-ncol%16
     padded = np.pad(im, ((0, row_add), (0, col_add)))
     
-    # WHOLE CELL PREDICTION
-    model = unet(pretrained_weights = None,
-                 input_size = (None,None,1))
-
-    if is_pc:
-        path = path_weights + 'unet_weights_batchsize_25_Nepochs_100_SJR0_10.hdf5'
-    else:
-        path = path_weights + 'weights_budding_BF_02.hdf5'
+    if pretrained_weights is None:
+        if mic_type == 'pc':
+            pretrained_weights = str(path_weights) + '/' + 'weights_budding_PhC_multilab_0_1'
+        elif mic_type == 'bf':
+            pretrained_weights = str(path_weights) + '/' + 'weights_budding_BF_multilab_0_1'
+        elif mic_type == 'fission':
+            pretrained_weights = str(path_weights) + '/' + 'weights_fission_multilab_0_2'
+        if model_type == 'tensorflow':
+            pretrained_weights = pretrained_weights + '.hdf5'
     
-    if not os.path.exists(path):
+    if not os.path.exists(pretrained_weights):
         raise ValueError('Path does not exist')
+
+    # WHOLE CELL PREDICTION
+
+    if model_type == 'tensorflow':
+        tf_model = unet(pretrained_weights = pretrained_weights,
+                    input_size = (None,None,1))
+        input = padded[np.newaxis,:,:,np.newaxis]
+        tf_results = tf_model.predict(input, batch_size=1)
+        tf_res = tf_results[0,:,:,0]
+        
+        return tf_res
+
+    elif model_type == 'pytorch':
+        # Load saved weights in pytorch model and run the pytorch model
+        model = UNet()
+        model.load_state_dict(torch.load(pretrained_weights))
+        
+        if torch.cuda.is_available() and device == 'cuda':
+            device = torch.device('cuda')
+            model = model.to(device)
+            padded = torch.from_numpy(padded).to(device)
+            print('device: ', device)
+        else:
+            device = torch.device('cpu')
+            padded = torch.from_numpy(padded)
+            print('device: ', device)
+        model.eval()
+        with torch.no_grad():
+            # Convert input tensor to PyTorch tensor
+            input_tensor = padded.unsqueeze(0).unsqueeze(0).float()
+            # Pass input through the model
+            output_tensor = model.forward(input_tensor)
+            # Convert output tensor to NumPy array
+            output_array = output_tensor.cpu().detach().numpy()
+        pt_res = output_array[0, 0, :, :]
+        
+        # empty cache
+        if (device == 'cuda') and (torch.cuda.is_available()):
+            report_gpu()
+        
+        return pt_res[:nrow, :ncol]
     
-    model.load_weights(path)
-
-    results = model.predict(padded[np.newaxis,:,:,np.newaxis], batch_size=1)
-
-    res = results[0,:,:,0]
-    return res[:nrow, :ncol]
-
+    
+    else:
+        raise ValueError('model_type is not valid. should be either "pytorch" or "tensorflow".')

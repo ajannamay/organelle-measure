@@ -11,4 +11,4 @@ __pycache__/
 .pytest_cache
 
 # unet weight file
-organelle_measure/unet/*.hdf5
+organelle_measure/unet/weights*

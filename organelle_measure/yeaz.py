@@ -2,6 +2,7 @@
 import numpy as np
 from .unet import neural_network,segment
 from skimage import transform,exposure,util
+import torch
 
 matrix_affine = np.array(
     [[ 9.48674270e-01,  4.20567174e-02,  2.11683860e-02],
@@ -25,7 +26,7 @@ def yeaz_label(img_i,min_dist):
     OUTPUT: img_o, a 2-D uint label image, same shape as img_i.
     """
     img_exposure  = exposure.equalize_adapthist(img_i)
-    img_predict   = neural_network.prediction(img_exposure,False)
+    img_predict   = neural_network.prediction(img_exposure,mic_type="bf",device=torch.device("cuda"))
     img_threshold = neural_network.threshold(img_predict)
     img_segment   = segment.segment(
                                     img_threshold,img_predict,
@@ -33,6 +34,6 @@ def yeaz_label(img_i,min_dist):
                                     topology=None
                                    )
     print(img_segment.max())
-    img_o = util.img_as_uint(img_segment.astype(np.int))
+    img_o = util.img_as_uint(img_segment.astype(int))
     return img_o
 # END segment cells with YeaZ

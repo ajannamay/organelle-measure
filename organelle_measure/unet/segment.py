@@ -1,7 +1,8 @@
 from scipy import ndimage as ndi
 from skimage.feature import peak_local_max
-from skimage.morphology import watershed, dilation
 from skimage.filters import gaussian
+from skimage.segmentation import watershed
+from skimage.morphology import dilation
 from skimage.measure import label
 
 import numpy as np
