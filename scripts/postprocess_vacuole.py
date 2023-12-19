@@ -1,3 +1,4 @@
+# %%
 import h5py
 import numpy as np
 import pandas as pd
@@ -32,6 +33,7 @@ def postprocess_vacuole(path_in,path_cell,path_out):
     )
     return None
 
+# %%
 folders = [
     "EYrainbow_glucose",
     "EYrainbow_glucose_largerBF",
@@ -75,4 +77,23 @@ args = pd.DataFrame({
 })
 # args.to_csv("./vauocle.csv",index=False)
 
+batch_apply(postprocess_vacuole,args)
+
+# %%
+
+list_i = []
+list_c = []
+list_o = []
+for path_cell in Path("images/cell/paperRebuttal").glob(f"*.tif"):
+    path_binary = Path("images/preprocessed/paperRebuttal")/f"probability_vacuole_{path_cell.stem.partition('_')[2]}.h5"
+    path_output = Path("images/labelled/paperRebuttal")/f"label-vacuole_{path_cell.stem.partition('_')[2]}.tiff"
+    list_i.append(path_binary)
+    list_c.append(path_cell)
+    list_o.append(path_output)
+
+args = pd.DataFrame({
+    "path_in":   list_i,
+    "path_cell": list_c,
+    "path_out":  list_o
+})
 batch_apply(postprocess_vacuole,args)

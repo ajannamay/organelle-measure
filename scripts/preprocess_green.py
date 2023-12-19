@@ -1,3 +1,4 @@
+# %%
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -11,6 +12,7 @@ def preprocess_green(path_in,path_out,organelle):
     io.imsave(str(path_out),util.img_as_uint(img_gaussian))
     return None
 
+# %%
 list_in   = []
 list_out  = []
 list_orga = []
@@ -27,4 +29,22 @@ args = pd.DataFrame({
     "organelle": list_orga
 })
 
+batch_apply(preprocess_green,args)
+
+# %%
+list_in   = []
+list_out  = []
+list_orga = []
+
+for path_in in Path("images/raw/paperRebuttal").glob("spectral-green*.nd2"):
+    path_ER = Path("images/preprocessed/paperRebuttal")/f'ER_{path_in.stem.partition("_")[2]}.tif'
+    list_in.append(path_in)
+    list_out.append(path_ER)
+    list_orga.append("ER")
+
+args = pd.DataFrame({
+    "path_in": list_in,
+    "path_out": list_out,
+    "organelle": list_orga
+})
 batch_apply(preprocess_green,args)

@@ -1,3 +1,4 @@
+# %%
 import h5py
 import numpy as np
 import pandas as pd
@@ -22,6 +23,7 @@ def postprocess_globular(path_in,path_ref,path_out):
     )
     return None
 
+# %%
 folders = [
     # "EYrainbow_glucose",
     # "EYrainbow_glucose_largerBF",
@@ -54,4 +56,24 @@ args = pd.DataFrame({
     "path_out": list_o
 })
 
+batch_apply(postprocess_globular,args)
+
+# %%
+organelles = ["peroxisome","LD","golgi"]
+
+list_i   = []
+list_ref = []
+list_o   = []
+for organelle in organelles:
+    for path_binary in Path("images/preprocessed/paperRebuttal").glob(f"probability_{organelle}*.h5"):
+        path_output = Path("images/labelled/paperRebuttal")/f"label-{path_binary.stem.partition('_')[2]}.tiff"
+        path_ref = Path("images/preprocessed/paperRebuttal")/f"{path_binary.stem.partition('_')[2]}.tif"
+        list_i.append(path_binary)
+        list_ref.append(path_ref)
+        list_o.append(path_output)
+args = pd.DataFrame({
+    "path_in":  list_i,
+    "path_ref": list_ref,
+    "path_out": list_o
+})
 batch_apply(postprocess_globular,args)

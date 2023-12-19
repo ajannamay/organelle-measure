@@ -1,3 +1,4 @@
+# %%
 import h5py
 import numpy as np
 import pandas as pd
@@ -16,6 +17,7 @@ def postprocess_ER(path_in,path_out):
     )
     return None
 
+# %%
 folders = [
     "EYrainbow_glucose",
     "EYrainbow_glucose_largerBF",
@@ -41,4 +43,17 @@ args = pd.DataFrame({
     "path_out": list_o
 })
 
+batch_apply(postprocess_ER,args)
+
+# %%
+list_i = []
+list_o = []
+for path_binary in Path("images/preprocessed/paperRebuttal").glob("probability_ER*.h5"):
+    path_output = Path("images/labelled/paperRebuttal")/f"label-{path_binary.stem.partition('_')[2]}.tiff"
+    list_i.append(path_binary)
+    list_o.append(path_output)
+args = pd.DataFrame({
+    "path_in":  list_i,
+    "path_out": list_o
+})
 batch_apply(postprocess_ER,args)

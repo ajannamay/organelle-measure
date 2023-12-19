@@ -1,3 +1,4 @@
+# %%
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -25,6 +26,7 @@ def segment_cells(path_in,path_out):
     print(f"...{path_out}")
     return None
 
+# %%
 list_in = []
 list_out = []
 for folder in list_folders:
@@ -38,3 +40,18 @@ args = pd.DataFrame({
 })
 
 batch_apply(segment_cells,args)
+
+# %%
+list_in = []
+list_out = []
+
+for file_cell in Path(f"./images/raw/paperRebuttal").glob("BF*.nd2"):
+    list_in.append(file_cell)
+    file_segm = Path(f"./images/cell/paperRebuttal")/f"binCell-{file_cell.stem.partition('-')[2]}.tif"
+    list_out.append(file_segm)
+args = pd.DataFrame({
+    "path_in":  list_in,
+    "path_out": list_out
+})
+batch_apply(segment_cells,args)
+

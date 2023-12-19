@@ -1,3 +1,4 @@
+# %%
 import pandas as pd
 from pathlib import Path
 from skimage import io,measure
@@ -34,6 +35,7 @@ def measure1cell(path_in,path_out):
     df.to_csv(str(path_out),index=False)
     return None
 
+# %%
 subfolders = [
     "EYrainbow_glucose",
     "EYrainbow_glucose_largerBF",
@@ -68,4 +70,19 @@ args = pd.DataFrame({
     "path_out":  list_o
 })
 
+batch_apply(measure1cell,args)
+
+# %%
+list_i = []
+list_o = []
+
+for path_i in Path("images/cell/paperRebuttal").glob("*.tif"):
+    path_o = Path("data/results/paperRebuttal")/f"cell_{path_i.stem.partition('_')[2]}.csv"
+    list_i.append(path_i)
+    list_o.append(path_o)
+
+args = pd.DataFrame({
+    "path_in":   list_i,
+    "path_out":  list_o
+})
 batch_apply(measure1cell,args)
