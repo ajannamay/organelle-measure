@@ -24,8 +24,7 @@ folders = [
 ]
 
 # CALCULATE OVER DATA & SAVE INTO FILES
-# %%
-# HELPING FUNCTIONS
+# %% HELPING FUNCTIONS
 def parse_meta_organelle(name):
     """name is the stem of the ORGANELLE label image file."""
     organelle = name.partition("_")[2].partition("_")[0]
@@ -55,7 +54,7 @@ def segment_at_thresholds(image):
     return scanned
 # END HELPING FUNCTIONS
 
-# %%
+# %% CALCULATE ALL EXPERIMENTS EXCEPT LEUCINE LARGE
 def calculate_error_bycell(path_orga,path_cell,folder_out):
     img_cell  = io.imread(str(path_cell))
     prob_file = h5py.File(str(path_orga),"r")
@@ -119,9 +118,8 @@ batch_apply(calculate_error_bycell,args)
 # batch_apply(test_exists,args)
 # >>> Leucine Large Experiment has special peroxisome and vacuole images.
 
-# %%
+# %% Leucine Large Experiment
 # =======================================================================
-# Leucine Large Experiment
 # Peroxisomes are pixels whose largest intensities are     on channel[1].
 # Vacuoles    are pixels whose largest intensities are not on channel[0].
 
@@ -190,19 +188,19 @@ args = pd.DataFrame({
 })
 batch_apply(calculate_error_blues,args)
 
-# %%
+# %% READ CALCULATED DATA
 # CAUTION: notice the folder name.
 list_thresholds = []
 for path_csv in Path("data/rebuttal_error/bycell_nonzero").glob("*.csv"):
     list_thresholds.append(pd.read_csv(str(path_csv)))
 df_thresholds = pd.concat(list_thresholds)
 
-# %%
+# %% SHOWED: normal std is not a good idea
 scanned_vector = df_thresholds[[f"scanned-{i}" for i in range(100)]].to_numpy()
 histogram = np.zeros_like(scanned_vector)
 histogram[:,-1] = scanned_vector[:,-1]
 histogram[:,:-1] = scanned_vector[:,:-1] - scanned_vector[:,1:]
-# %%
+
 probabilities = np.linspace(0,1,100,endpoint=False) + 0.01
 mu = np.dot(histogram,probabilities)
 mean = np.mean(scanned_vector,axis=1)
@@ -216,7 +214,7 @@ sigma  = np.sqrt(sigma2)
 z_score = sdv/mean
 plt.hist(z_score,bins=50)
 
-# %%
+# %% Volume Change Percentage vs. Threshold Change
 errors_value = scanned_vector - scanned_vector[:,50].reshape((-1,1))
 errors_prcnt = errors_value/scanned_vector[:,50].reshape((-1,1))
 masked_err_prcnt = np.ma.masked_invalid(errors_prcnt)
@@ -254,8 +252,7 @@ plt.plot(
 plt.xlim(0,0.4)
 plt.ylim(-1,2)
 
-# %% 
-# Some metrics I tried, not communicated with advisor.
+# %% Some metrics I tried, not communicated with advisor.
 scanned = scanned_vector[100]
 
 tp = np.zeros(100)
@@ -310,3 +307,5 @@ def robustness_metric(scanned):
 
     plt.plot(rate_fp,rate_tp)
     return tp,fp,fn,tn,rate_tp,rate_fp
+
+# %%
