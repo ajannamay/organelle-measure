@@ -176,7 +176,7 @@ for folder,stem in zip(df_meta['folder'],df_meta['file']):
     list_df.append(
         pd.DataFrame({
             "organelle":     (orga:=dict_organelles[color][0]),
-            "wavelength":    df_benchmark.loc[df_benchmark['organelle'].eq(orga),'wavelength'].to_list()[:len(mean1)],
+            "wavelength":    df_benchmark.loc[df_benchmark['organelle'].eq(orga),'wavelength'].to_list()[:len(mean1)], # TODO: :len(mean1) should not exist, a problem of ND2reader!
             "intensity":     mean1,
             "experiment":    folder,
             "field_of_view": stem
@@ -185,7 +185,7 @@ for folder,stem in zip(df_meta['folder'],df_meta['file']):
     list_df.append(
         pd.DataFrame({
             "organelle":     (orga:=dict_organelles[color][1]),
-            "wavelength":    df_benchmark.loc[df_benchmark['organelle'].eq(orga),'wavelength'].to_list()[:len(mean1)],
+            "wavelength":    df_benchmark.loc[df_benchmark['organelle'].eq(orga),'wavelength'].to_list()[:len(mean1)], # TODO: :len(mean1) should not exist, a problem of ND2reader!
             "intensity":     mean2,
             "experiment":    folder,
             "field_of_view": stem
