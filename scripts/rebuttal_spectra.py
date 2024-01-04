@@ -5,12 +5,19 @@ from pathlib import Path
 from nd2reader import ND2Reader
 from skimage import io,util
 
+import plotly.express as px
+import plotly.graph_objects as go
+
 
 # We're trying to prove the red channels separate 
 # mitochondria and lipid droplets correctly
 # by using a strain that has a different color for LDs(?)
 folder_raw = "images/raw/Kiandohkt4colorWT"
 folder_int = "images/preprocessed/rebuttal_spectra"
+
+# wavelengths of different acquisitions
+wl_yfp = [511,517,523,529,535,541,547,553,559,565]
+wl_red = [568,574,580,586,592,598,604,610,616,622,628,634,640,646,652]
 
 # %% 
 # ND2READER DOES NOT WORK FOR IMAGES >7 CHANNELS
@@ -56,10 +63,11 @@ def open_spectral_img(path):
 path_img = Path(folder_raw)/"EY2796_4color_FOV1_WT_bfp.nd2"
 test = open_spectral_img(path_img)
 
-# %% wavelengths of different acquisitions
-wl_red = [568,574,580,586,592,598,604,610,616,622,628,634,640,646,652]
-wl_yfp = [511,517,523,529,535,541,547,553,559,565]
+# %%
+# 1 labels YFP
+# 2 labels Red channels
 
+# Extract the spectra, for each pixel in an FOV
 path_label1 = ""
 path_label2 = ""
 path_spectra1 = ""
@@ -81,8 +89,53 @@ spectra2_label2 = img_spectra2[img_label2]
 spectra_label1 = np.hstack((spectra1_label1,spectra2_label1))
 spectra_label2 = np.hstack((spectra1_label2,spectra2_label2))
 
+# TODO: Normalize and Average
+normalized1 = []
+normalized2 = []
+
+# TODO: Get the benchmark from non-overlaping spectra
+benchmark1 = []
+benchmark2 = []
+
 # %% PLOTS
- 
+fig = go.Figure()
+for fov in range(1,5): # IS THIS HARD CODE NUMBER CORRECT?
+	normalized1 = np.array()
+	normalized2 = np.array()
+	fig.add_trace(
+		go.Scatter(
+			x=wl_yfp+wl_red,
+			y=normalized1,
+			name=f"FOV-{fov}", mode="lines+markers",
+			line = dict(dash="solid",shape="spline",color='grey')
+		)
+	) 
+	fig.add_trace(
+		go.Scatter(
+			x=wl_yfp+wl_red,
+			y=normalized2,
+			name=f"FOV-{fov}", mode="lines+markers",
+			line = dict(dash="dash",shape="spline",color='grey')
+		)
+	) 
+fig.add_trace(
+	go.Scatter(
+		x = wl_yfp + wl_red,
+		y = benchmark1,
+		name="lipid droplet", mode="lines+markers",
+		line=dict(dash="solid",shape="spine",color="blue")
+	)
+)
+fig.add_trace(
+	go.Scatter(
+		x = wl_yfp + wl_red,
+		y = benchmark2,
+		name="mitochondrion", mode="lines+markers",
+		line=dict(dash="solid",shape="spine",color="red")
+	)
+)
+fig.update_layout(template="simple_white")
+fig.write_html(f"data/rebuttal_spectra/from_Kiandokht_strain.html")
 
 # %% END BIOFORMATS, USE ONCE, OTHERWISE NEED TO RESTART KERNEL
 javabridge.kill_vm()
