@@ -8,10 +8,10 @@ from skimage import io,util
 import plotly.express as px
 import plotly.graph_objects as go
 
-
 # We're trying to prove the red channels separate 
 # mitochondria and lipid droplets correctly
 # by using a strain that has a different color for LDs(?)
+
 folder_raw = "images/raw/Kiandohkt4colorWT"
 folder_int = "images/preprocessed/rebuttal_spectra"
 
@@ -60,48 +60,58 @@ def open_spectral_img(path):
 	            	   )
 	return array_img
 
-path_img = Path(folder_raw)/"EY2796_4color_FOV1_WT_bfp.nd2"
-test = open_spectral_img(path_img)
+def get_spectra(label1,label2,spectra1,spectra2):
+	"""
+	1 labels YFP
+	2 labels Red channels
+	"""
+	spectra1_label1 = spectra1[label1] + 0.01    # avoid 0 for alignment & normalization
+	spectra2_label1 = spectra2[label1] + 0.01    # avoid 0 for alignment & normalization
+	spectra1_label2 = spectra1[label2] + 0.01    # avoid 0 for alignment & normalization
+	spectra2_label2 = spectra2[label2] + 0.01    # avoid 0 for alignment & normalization
 
-# %%
-# 1 labels YFP
-# 2 labels Red channels
+	aligned1_label1 = spectra1_label1 #/ spectra1_label1[:,-1][:,np.newaxis]
+	aligned2_label1 = spectra2_label1 #/ spectra2_label1[:, 0][:,np.newaxis]
+	aligned1_label2 = spectra1_label2 #/ spectra1_label2[:,-1][:,np.newaxis]
+	aligned2_label2 = spectra2_label2 #/ spectra2_label2[:, 0][:,np.newaxis]
 
-# Extract the spectra, for each pixel in an FOV
-path_label1 = ""
-path_label2 = ""
-path_spectra1 = ""
-path_spectra2 = ""
+	# it seems the alignment should not be done, but why?
 
-img_label1 = io.imread(str(path_label1))
-img_label2 = io.imread(str(path_label2))
-img_label1 = (img_label1 > 0.5)
-img_label2 = (img_label2 > 0.5)
+	spectra_label1 = np.hstack((aligned1_label1,aligned2_label1))
+	spectra_label2 = np.hstack((aligned1_label2,aligned2_label2))
 
-img_spectra1 = open_spectral_img(str(path_spectra1))
-img_spectra2 = open_spectral_img(str(path_spectra2))
+	max1 = np.max(spectra_label1,axis=1)[:,np.newaxis]
+	max2 = np.max(spectra_label2,axis=1)[:,np.newaxis]
 
-spectra1_label1 = img_spectra1[img_label1]
-spectra2_label1 = img_spectra2[img_label1]
-spectra1_label2 = img_spectra1[img_label2]
-spectra2_label2 = img_spectra2[img_label2]
+	normalized1 = spectra_label1/max1
+	normalized2 = spectra_label2/max2
 
-spectra_label1 = np.hstack((spectra1_label1,spectra2_label1))
-spectra_label2 = np.hstack((spectra1_label2,spectra2_label2))
+	averaged1 = np.mean(normalized1,axis=0)
+	averaged1 = averaged1/np.max(averaged1)
 
-# TODO: Normalize and Average
-normalized1 = []
-normalized2 = []
+	averaged2 = np.mean(normalized2,axis=0)
+	averaged2 = averaged2/np.max(averaged2)
 
-# TODO: Get the benchmark from non-overlaping spectra
-benchmark1 = []
-benchmark2 = []
+	return averaged1,averaged2
+
 
 # %% PLOTS
 fig = go.Figure()
-for fov in range(1,5): # IS THIS HARD CODE NUMBER CORRECT?
-	normalized1 = np.array()
-	normalized2 = np.array()
+for fov in range(1,7): # IS THIS HARD CODE NUMBER CORRECT?
+	path_prob1 = Path(folder_int)/f"Probabilities_EY2796_4color_FOV{fov}_WT_yfp_unmix.tiff"
+	path_prob2 = Path(folder_int)/f"Probabilities_EY2796_4color_FOV{fov}_WT_Red_unmix.tiff"
+	path_spectra1 = Path(folder_raw)/f"EY2796_4color_FOV{fov}_WT_yfp.nd2"
+	path_spectra2 = Path(folder_raw)/f"EY2796_4color_FOV{fov}_WT_Red.nd2"
+
+	img_prob1 = io.imread(str(path_prob1))
+	img_prob2 = io.imread(str(path_prob2))
+	img_label1 = (img_prob1 > 0.5)
+	img_label2 = (img_prob2 > 0.5)
+
+	img_spectra1 = open_spectral_img(str(path_spectra1))
+	img_spectra2 = open_spectral_img(str(path_spectra2))
+
+	normalized1,normalized2 = get_spectra(img_label1,img_label2,img_spectra1,img_spectra2)
 	fig.add_trace(
 		go.Scatter(
 			x=wl_yfp+wl_red,
@@ -117,13 +127,16 @@ for fov in range(1,5): # IS THIS HARD CODE NUMBER CORRECT?
 			name=f"FOV-{fov}", mode="lines+markers",
 			line = dict(dash="dash",shape="spline",color='grey')
 		)
-	) 
+	)
+img_benchmark1 = np.logical_and((img_prob1>0.9),(img_prob2<0.1))
+img_benchmark2 = np.logical_and((img_prob2>0.9),(img_prob1<0.1))
+benchmark1,benchmark2 = get_spectra(img_benchmark1,img_benchmark2,img_spectra1,img_spectra2)
 fig.add_trace(
 	go.Scatter(
 		x = wl_yfp + wl_red,
 		y = benchmark1,
 		name="lipid droplet", mode="lines+markers",
-		line=dict(dash="solid",shape="spine",color="blue")
+		line=dict(dash="solid",shape="spline",color="blue")
 	)
 )
 fig.add_trace(
@@ -131,7 +144,7 @@ fig.add_trace(
 		x = wl_yfp + wl_red,
 		y = benchmark2,
 		name="mitochondrion", mode="lines+markers",
-		line=dict(dash="solid",shape="spine",color="red")
+		line=dict(dash="solid",shape="spline",color="red")
 	)
 )
 fig.update_layout(template="simple_white")
