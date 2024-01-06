@@ -4,6 +4,7 @@ import pandas as pd
 from pathlib import Path
 from nd2reader import ND2Reader
 from skimage import io,util
+from organelle_measure.tools import read_spectral_img
 
 import plotly.express as px
 import plotly.graph_objects as go
@@ -40,26 +41,6 @@ import bioformats
 javabridge.start_vm(class_path=bioformats.JARS)
 
 # %%
-def open_spectral_img(path):
-	with ND2Reader(str(path)) as nd2_img:
-		size_img = nd2_img.sizes
-
-	sample_img  = bioformats.load_image(
-					str(path), 
-					c=None, z=0, t=0, series=None, index=None,
-					rescale=False, wants_max_intensity=False, 
-					channel_names=None
-	              )
-	array_img = np.empty((size_img['z'],*sample_img.shape))
-	for z in range(size_img['z']):
-		array_img[z] = bioformats.load_image(
-							str(path), 
-							c=None, z=z, t=0, series=None, index=None,
-							rescale=False, wants_max_intensity=False, 
-							channel_names=None
-	            	   )
-	return array_img
-
 def get_spectra(label1,label2,spectra1,spectra2):
 	"""
 	1 labels YFP
@@ -70,10 +51,10 @@ def get_spectra(label1,label2,spectra1,spectra2):
 	spectra1_label2 = spectra1[label2] + 0.01    # avoid 0 for alignment & normalization
 	spectra2_label2 = spectra2[label2] + 0.01    # avoid 0 for alignment & normalization
 
-	aligned1_label1 = spectra1_label1 #/ spectra1_label1[:,-1][:,np.newaxis]
-	aligned2_label1 = spectra2_label1 #/ spectra2_label1[:, 0][:,np.newaxis]
-	aligned1_label2 = spectra1_label2 #/ spectra1_label2[:,-1][:,np.newaxis]
-	aligned2_label2 = spectra2_label2 #/ spectra2_label2[:, 0][:,np.newaxis]
+	aligned1_label1 = spectra1_label1 # / spectra1_label1[:,-1][:,np.newaxis]
+	aligned2_label1 = spectra2_label1 # / spectra2_label1[:, 0][:,np.newaxis]
+	aligned1_label2 = spectra1_label2 # / spectra1_label2[:,-1][:,np.newaxis]
+	aligned2_label2 = spectra2_label2 # / spectra2_label2[:, 0][:,np.newaxis]
 
 	# it seems the alignment should not be done, but why?
 
@@ -108,23 +89,40 @@ for fov in range(1,7): # IS THIS HARD CODE NUMBER CORRECT?
 	img_label1 = (img_prob1 > 0.5)
 	img_label2 = (img_prob2 > 0.5)
 
-	img_spectra1 = open_spectral_img(str(path_spectra1))
-	img_spectra2 = open_spectral_img(str(path_spectra2))
+	img_spectra1 = read_spectral_img(str(path_spectra1))
+	img_spectra2 = read_spectral_img(str(path_spectra2))
 
 	normalized1,normalized2 = get_spectra(img_label1,img_label2,img_spectra1,img_spectra2)
 	fig.add_trace(
 		go.Scatter(
-			x=wl_yfp+wl_red,
-			y=normalized1,
-			name=f"FOV-{fov}", mode="lines+markers",
+			x=wl_yfp,
+			y=normalized1[:10],
+			name=f"FOV-{fov}-LD-yellow", mode="lines+markers",
 			line = dict(dash="solid",shape="spline",color='grey')
 		)
-	) 
+	)
 	fig.add_trace(
 		go.Scatter(
-			x=wl_yfp+wl_red,
-			y=normalized2,
-			name=f"FOV-{fov}", mode="lines+markers",
+			x=wl_red,
+			y=normalized1[10:],
+			name=f"FOV-{fov}-LD-red", mode="lines+markers",
+			line = dict(dash="solid",shape="spline",color='grey')
+		)
+	)
+	
+	fig.add_trace(
+		go.Scatter(
+			x=wl_yfp,
+			y=normalized2[:10],
+			name=f"FOV-{fov}-mitochondrion-yellow", mode="lines+markers",
+			line = dict(dash="dash",shape="spline",color='grey')
+		)
+	)
+	fig.add_trace(
+		go.Scatter(
+			x=wl_red,
+			y=normalized2[10:],
+			name=f"FOV-{fov}-mitochondrion-red", mode="lines+markers",
 			line = dict(dash="dash",shape="spline",color='grey')
 		)
 	)
@@ -133,16 +131,33 @@ img_benchmark2 = np.logical_and((img_prob2>0.9),(img_prob1<0.1))
 benchmark1,benchmark2 = get_spectra(img_benchmark1,img_benchmark2,img_spectra1,img_spectra2)
 fig.add_trace(
 	go.Scatter(
-		x = wl_yfp + wl_red,
-		y = benchmark1,
+		x = wl_yfp,
+		y = benchmark1[:10],
 		name="lipid droplet", mode="lines+markers",
 		line=dict(dash="solid",shape="spline",color="blue")
 	)
 )
 fig.add_trace(
 	go.Scatter(
-		x = wl_yfp + wl_red,
-		y = benchmark2,
+		x = wl_red,
+		y = benchmark1[10:],
+		name="lipid droplet", mode="lines+markers",
+		line=dict(dash="solid",shape="spline",color="blue")
+	)
+)
+
+fig.add_trace(
+	go.Scatter(
+		x = wl_yfp,
+		y = benchmark2[:10],
+		name="mitochondrion", mode="lines+markers",
+		line=dict(dash="solid",shape="spline",color="red")
+	)
+)
+fig.add_trace(
+	go.Scatter(
+		x = wl_red,
+		y = benchmark2[10:],
 		name="mitochondrion", mode="lines+markers",
 		line=dict(dash="solid",shape="spline",color="red")
 	)

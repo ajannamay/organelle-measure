@@ -4,6 +4,7 @@ from pathlib import Path
 from scipy import ndimage as ndi
 from skimage import io,morphology,measure,segmentation
 
+
 # BEGIN of ND2reader wrapper:
 from nd2reader import ND2Reader
 
@@ -54,6 +55,30 @@ open_organelles = {
     "LD":           open_LD
 }
 # END of organelle nd2 file opener
+
+# START of bioformats wrapper
+import javabridge
+import bioformats
+def read_spectral_img(path):
+	with ND2Reader(str(path)) as nd2_img:
+		size_img = nd2_img.sizes
+
+	sample_img  = bioformats.load_image(
+					str(path), 
+					c=None, z=0, t=0, series=None, index=None,
+					rescale=False, wants_max_intensity=False, 
+					channel_names=None
+	              )
+	array_img = np.empty((size_img['z'],*sample_img.shape))
+	for z in range(size_img['z']):
+		array_img[z] = bioformats.load_image(
+							str(path), 
+							c=None, z=z, t=0, series=None, index=None,
+							rescale=False, wants_max_intensity=False, 
+							channel_names=None
+	            	   )
+	return array_img
+# END of bioformats wrapper
 
 # START of vacuole postprocesser
 

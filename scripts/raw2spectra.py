@@ -8,10 +8,16 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import xmltodict
+import h5py
 from pathlib import Path
-from copy import deepcopy
 from skimage import io,util
-from organelle_measure.tools import load_nd2_plane,get_nd2_size
+from organelle_measure.tools import get_nd2_size,read_spectral_img
+from nd2reader import ND2Reader
+
+import javabridge
+import bioformats
+
+javabridge.start_vm(class_path=bioformats.JARS)
 
 def read_spectra_xml(filepath):
     with open(filepath,'rb') as file_xml:
@@ -49,34 +55,30 @@ def read_spectra_xml(filepath):
     return df
 
 def get_spectra_img(file1,file2,file_raw):
-    img_label1 = io.imread(str(file1))
-    img_label2 = io.imread(str(file2))
-    img_raw    = load_nd2_plane(str(file_raw),frame="czyx",axes="t",idx=0)
-    # shape = get_nd2_size(str(file_raw))
+    with h5py.File(str(file1)) as f1:
+        img_label1 = f1["exported_data"][1]
+    with h5py.File(str(file2)) as f2:
+        img_label2 = f2["exported_data"][1]
 
-    label1 = (img_label1>1)
-    label2 = (img_label2>1)
-    # label0 = np.invert(label1)*np.invert(label2)
+    img_raw = read_spectral_img(str(file_raw))
 
-    # spectra0 = np.array(img_raw[:,label0]).transpose()
-    spectra1 = np.array(img_raw[:,label1]).transpose()
-    spectra2 = np.array(img_raw[:,label2]).transpose()
+    label1 = (img_label1>0.5)
+    label2 = (img_label2>0.5)
+    spectra1 = np.array(img_raw[label1])
+    spectra2 = np.array(img_raw[label2])
 
-    # max0 = np.max(np.array(spectra0),axis=1)[:,np.newaxis]
     max1 = np.max(np.array(spectra1),axis=1)[:,np.newaxis]
     max2 = np.max(np.array(spectra2),axis=1)[:,np.newaxis]
 
-    # normed0 = np.zeros_like(max0)
     normed1 = np.zeros_like(max1)
     normed2 = np.zeros_like(max2)
-    # np.true_divide(1,max0,normed0,where=(max0>0))
+
     np.true_divide(1,max1,normed1,where=(max1>0))
     np.true_divide(1,max2,normed2,where=(max2>0))
-    # normed0 = normed0 * spectra0
+
     normed1 = normed1 * spectra1
     normed2 = normed2 * spectra2
 
-    # average0 = np.mean(normed0,axis=0)
     average1 = np.mean(normed1,axis=0)
     average2 = np.mean(normed2,axis=0)
 
@@ -87,12 +89,12 @@ folder_l = Path("images/preprocessed")
 folder_o = Path("data/spectra")
 
 subfolders = [
-    "EYrainbow_glucose",
+    # "EYrainbow_glucose",
     "EYrainbow_rapamycin_1stTry",
-    "EYrainbow_rapamycin_CheckBistability",
+    # "EYrainbow_rapamycin_CheckBistability",
     "EYrainbow_1nmpp1_1st",
     "EYrainbow_leucine_large",
-    "EYrainbow_leucine",
+    # "EYrainbow_leucine",
     "EYrainbowWhi5Up_betaEstrodiol",
     "EYrainbow_glucose_largerBF"
 ]
@@ -101,7 +103,8 @@ list_meta = []
 for subfolder in subfolders:
     for color in ['blue','red']:
         for path_file in (folder_i/subfolder).glob(f"spectral-{color}*.nd2"):
-            dict_meta = get_nd2_size(str(path_file))
+            with ND2Reader(str(path_file)) as nd2_img:
+                dict_meta = nd2_img.sizes
             dict_meta["folder"] = subfolder
             dict_meta["file"] = path_file.stem
             list_meta.append(dict_meta)
@@ -155,14 +158,15 @@ df_benchmark.set_index(["organelle",'wavelength'],inplace=True)
 df_benchmark["norm"] = df_benchmark.loc[:,"intensity"]/df_benchmark_max.loc[:,'intensity']
 df_benchmark.reset_index(inplace=True)
 
-df_meta = pd.read_csv("data/spectra/meta_normalizd.csv")
+df_meta = pd.read_csv("data/spectra/meta_normalized.csv")
 list_df = []
 for folder,stem in zip(df_meta['folder'],df_meta['file']):
-    color = 'blue' if 'blue' in stem else 'red'
-    
+    # color = 'blue' if 'blue' in stem else 'red'
+    color = 'red'
+
     file_raw = folder_i/folder/f'{stem}.nd2'
-    file_label1 = folder_l/folder/f"binary-{dict_organelles[color][0]}_{file_raw.stem.partition('_')[2]}.tiff"
-    file_label2 = folder_l/folder/f"binary-{dict_organelles[color][1]}_{file_raw.stem.partition('_')[2]}.tiff"
+    file_label1 = folder_l/folder/f"probability_{dict_organelles[color][0]}_{file_raw.stem.partition('_')[2]}.h5"
+    file_label2 = folder_l/folder/f"probability_{dict_organelles[color][1]}_{file_raw.stem.partition('_')[2]}.h5"
     
     try:
         mean1,mean2 = get_spectra_img(
