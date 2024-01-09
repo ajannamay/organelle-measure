@@ -2,7 +2,7 @@
 # in order to validate our unmixing.
 
 # This file assumes running on the root dir of this project!
-
+# %%
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -11,13 +11,35 @@ import xmltodict
 import h5py
 from pathlib import Path
 from skimage import io,util
-from organelle_measure.tools import get_nd2_size,read_spectral_img
 from nd2reader import ND2Reader
 
+# %%
 import javabridge
 import bioformats
 
 javabridge.start_vm(class_path=bioformats.JARS)
+
+# %%
+def read_spectral_img(path):
+	with ND2Reader(str(path)) as nd2_img:
+		size_img = nd2_img.sizes
+
+	sample_img  = bioformats.load_image(
+					str(path), 
+					c=None, z=0, t=0, series=None, index=None,
+					rescale=False, wants_max_intensity=False, 
+					channel_names=None
+	              )
+	array_img = np.empty((size_img['z'],*sample_img.shape))
+	for z in range(size_img['z']):
+		array_img[z] = bioformats.load_image(
+							str(path), 
+							c=None, z=z, t=0, series=None, index=None,
+							rescale=False, wants_max_intensity=False, 
+							channel_names=None
+	            	   )
+	return array_img
+
 
 def read_spectra_xml(filepath):
     with open(filepath,'rb') as file_xml:
@@ -72,10 +94,8 @@ def get_spectra_img(file1,file2,file_raw):
 
     normed1 = np.zeros_like(max1)
     normed2 = np.zeros_like(max2)
-
     np.true_divide(1,max1,normed1,where=(max1>0))
     np.true_divide(1,max2,normed2,where=(max2>0))
-
     normed1 = normed1 * spectra1
     normed2 = normed2 * spectra2
 
@@ -84,8 +104,9 @@ def get_spectra_img(file1,file2,file_raw):
 
     return average1,average2
 
+# %%
 folder_i = Path("images/raw")
-folder_l = Path("images/preprocessed")
+folder_l = Path("images/labelled")
 folder_o = Path("data/spectra")
 
 subfolders = [
@@ -99,6 +120,7 @@ subfolders = [
     "EYrainbow_glucose_largerBF"
 ]
 
+# %% DON'T THINK THIS IS USEFUL ANY MORE
 list_meta = []
 for subfolder in subfolders:
     for color in ['blue','red']:
@@ -109,10 +131,11 @@ for subfolder in subfolders:
             dict_meta["file"] = path_file.stem
             list_meta.append(dict_meta)
 df_meta = pd.concat([pd.DataFrame(meta,index=[m]) for m,meta in enumerate(list_meta)])
+# %%
 df_meta.to_csv("data/spectra/meta_normalized.csv",index=False)
 # The output has been modified to exclude those not suitable for spectrum plot.
 
-# Deal with blue channels of leucine large experiment.
+# %% Deal with blue channels of leucine large experiment.
 for fileblue in (folder_l/"leucine-large-blue-gaussian").glob("binary-spectral-blue*.tiff"):
     img_old = io.imread(str(fileblue))
     # print(type(img_old),img_old.shape)
@@ -130,6 +153,7 @@ for fileblue in (folder_l/"leucine-large-blue-gaussian").glob("binary-spectral-b
     print(f"Finished: {fileblue.stem}")
 # End
 
+# %%
 dict_files = {
     "blue": folder_o/"EYrainbow_blue_rpmc-0_field-5.xml",
     "red":  folder_o/"EYrainbow_red_glu-200_field-2_try1_largerBF.xml"
@@ -158,9 +182,9 @@ df_benchmark.set_index(["organelle",'wavelength'],inplace=True)
 df_benchmark["norm"] = df_benchmark.loc[:,"intensity"]/df_benchmark_max.loc[:,'intensity']
 df_benchmark.reset_index(inplace=True)
 
-df_meta = pd.read_csv("data/spectra/meta_normalized.csv")
+# %%
 list_df = []
-for folder,stem in zip(df_meta['folder'],df_meta['file']):
+for folder in subfolders:
     # color = 'blue' if 'blue' in stem else 'red'
     color = 'red'
 
@@ -196,12 +220,14 @@ for folder,stem in zip(df_meta['folder'],df_meta['file']):
         })        
     )
 df_img = pd.concat(list_df)
-df_img.to_csv("data/spectra/spectra_images.csv",index=False)
+# %%
+# df_img.to_csv("data/spectra/spectra_images.csv",index=False)
+df_img.to_csv("data/spectra/newred_spectra_images.csv",index=False)
 
 
-# Plot spectra:
-
-df_img = pd.read_csv("data/spectra/spectra_images.csv")
+# %% Plot spectra:
+# df_img = pd.read_csv("data/spectra/spectra_images.csv")
+df_img = pd.read_csv("data/spectra/newred_spectra_images.csv")
 df_exp = df_img.groupby(['experiment','organelle','wavelength']).mean()
 df_exp.reset_index(inplace=True)
 
@@ -214,8 +240,9 @@ df_max.set_index(['experiment','organelle'],inplace=True)
 df_exp['norm'] = df_exp.loc[:,'intensity']/df_max.loc[:,'intensity']
 df_exp.reset_index(inplace=True)
 
-# color = 'blue'
-for color in ['blue','red']:
+
+# for color in ['blue','red']:
+for color in ['red']:
     fig = go.Figure()
     for experiment in df_exp['experiment'].unique():
         if experiment == "EYrainbow_leucine_large":
@@ -257,4 +284,5 @@ for color in ['blue','red']:
         )
     )
     fig.update_layout(template="simple_white")
-    fig.write_html(f"{folder_o}/white_unmix_comparison_{color}.html")
+    fig.write_html(f"{folder_o}/newred_white_unmix_comparison_{color}.html")
+# %%

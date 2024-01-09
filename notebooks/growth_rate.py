@@ -61,3 +61,7 @@ for subfolder in subfolders:
     fig.show()
 df_rates = pd.concat(pd.DataFrame(rate) for rate in list_rates)
 df_rates.to_csv(str(folder_i/"growth_rate.csv"),index=False)
+
+# TODO: Bootstrap or Jackknife
+# scipy.stat.bootstrap: https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.bootstrap.html
+# Jackknife resampling: https://en.wikipedia.org/wiki/Jackknife_resampling
