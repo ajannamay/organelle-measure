@@ -21,18 +21,6 @@ subfolders = [
     "EYrainbow_leucine"
 ]
 
-def fit_rate(df:pd.DataFrame):
-    """
-    intended for aggregation with pd.Dataframe
-    but did not work.
-    """
-    times = df['minute'].to_numpy()
-    normalized = df['OD'].to_numpy()/df['OD'].first()
-    fitter = LinearRegression(fit_intercept=False)
-    fitter.fit(times,normalized)
-    rate = fitter.coef_
-    return rate
-
 fitter = LinearRegression(fit_intercept=False)
 list_rates = []
 for subfolder in subfolders:
@@ -65,3 +53,11 @@ df_rates.to_csv(str(folder_i/"growth_rate.csv"),index=False)
 # TODO: Bootstrap or Jackknife
 # scipy.stat.bootstrap: https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.bootstrap.html
 # Jackknife resampling: https://en.wikipedia.org/wiki/Jackknife_resampling
+
+# Measurements During Rebuttal
+OD_rebuttal_individual = pd.read_csv("data/growthrate/rebuttal_OD_individual.csv")
+
+
+
+OD_rebuttal_together = pd.read_csv("data/growthrate/rebuttal_OD_together.csv")
+

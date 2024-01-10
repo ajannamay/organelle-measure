@@ -21,24 +21,30 @@ javabridge.start_vm(class_path=bioformats.JARS)
 
 # %%
 def read_spectral_img(path):
-	with ND2Reader(str(path)) as nd2_img:
-		size_img = nd2_img.sizes
-
-	sample_img  = bioformats.load_image(
+    nd2meta_xml = bioformats.get_omexml_metadata(str(path))
+    nd2meta_dict = xmltodict.parse(nd2meta_xml)
+    size_img = {
+        'c': nd2meta_dict["OME"]["Image"]["Pixels"]["@SizeC"],
+        't': nd2meta_dict["OME"]["Image"]["Pixels"]["@SizeT"],
+        'x': nd2meta_dict["OME"]["Image"]["Pixels"]["@SizeX"],
+        'y': nd2meta_dict["OME"]["Image"]["Pixels"]["@SizeY"],
+        'z': nd2meta_dict["OME"]["Image"]["Pixels"]["@SizeZ"]
+    }
+    sample_img  = bioformats.load_image(
 					str(path), 
 					c=None, z=0, t=0, series=None, index=None,
 					rescale=False, wants_max_intensity=False, 
 					channel_names=None
 	              )
-	array_img = np.empty((size_img['z'],*sample_img.shape))
-	for z in range(size_img['z']):
-		array_img[z] = bioformats.load_image(
+    array_img = np.empty((size_img['z'],*sample_img.shape))
+    for z in range(size_img['z']):
+        array_img[z] = bioformats.load_image(
 							str(path), 
 							c=None, z=z, t=0, series=None, index=None,
 							rescale=False, wants_max_intensity=False, 
 							channel_names=None
 	            	   )
-	return array_img
+    return array_img
 
 
 def read_spectra_xml(filepath):
@@ -125,8 +131,15 @@ list_meta = []
 for subfolder in subfolders:
     for color in ['blue','red']:
         for path_file in (folder_i/subfolder).glob(f"spectral-{color}*.nd2"):
-            with ND2Reader(str(path_file)) as nd2_img:
-                dict_meta = nd2_img.sizes
+            nd2meta_xml = bioformats.get_omexml_metadata(str(path_file))
+            nd2meta_dict = xmltodict.parse(nd2meta_xml)
+            dict_meta = {
+                'c': nd2meta_dict["OME"]["Image"]["Pixels"]["@SizeC"],
+                't': nd2meta_dict["OME"]["Image"]["Pixels"]["@SizeT"],
+                'x': nd2meta_dict["OME"]["Image"]["Pixels"]["@SizeX"],
+                'y': nd2meta_dict["OME"]["Image"]["Pixels"]["@SizeY"],
+                'z': nd2meta_dict["OME"]["Image"]["Pixels"]["@SizeZ"]
+            }
             dict_meta["folder"] = subfolder
             dict_meta["file"] = path_file.stem
             list_meta.append(dict_meta)
