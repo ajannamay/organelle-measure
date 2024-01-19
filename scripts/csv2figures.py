@@ -78,17 +78,23 @@ df_bycell = read_results(Path("./data/results"),subfolders,(px_x,px_y,px_z))
 
 pv_bycell = df_bycell.set_index(['folder','condition','field','idx-cell'])
 df_corrcoef = pd.DataFrame(index=pv_bycell.loc[pv_bycell["organelle"].eq("ER")].index)
-df_corrcoef.loc[:,'effective-length'] = np.sqrt(pv_bycell.loc[pv_bycell["organelle"].eq("ER"),'cell-area']/np.pi)
-df_corrcoef.loc[:,'cell-area'] = pv_bycell.loc[pv_bycell["organelle"].eq("ER"),'cell-area']
-df_corrcoef.loc[:,'cell-volume'] = pv_bycell.loc[pv_bycell["organelle"].eq("ER"),'cell-volume']
+df_corrcoef.loc[:,'cell length'] = np.sqrt(pv_bycell.loc[pv_bycell["organelle"].eq("ER"),'cell-area']/np.pi)
+df_corrcoef.loc[:,'cell area'] = pv_bycell.loc[pv_bycell["organelle"].eq("ER"),'cell-area']
+df_corrcoef.loc[:,'cell volume'] = pv_bycell.loc[pv_bycell["organelle"].eq("ER"),'cell-volume']
 properties = []
+rename_dict = {
+    'mean'          : "average volume",
+    'count'         : "number",
+    'total'         : "total volume",
+    'total-fraction': "volume fraction"
+}
 for orga in [*organelles,"non-organelle"]:
     for prop in ['mean','count','total','total-fraction']:
         if (orga in ["ER","vacuole","non-organelle"]) and (prop in ["count","mean"]):
             continue
-        prop_new = f"{prop}-{orga}"
+        prop_new = f"{orga} {rename_dict[prop]}"
         properties.append(prop_new)
-        df_corrcoef.loc[:,prop_new] = pv_bycell.loc[pv_bycell["organelle"]==orga,prop]
+        df_corrcoef.loc[:,prop_new] = pv_bycell.loc[pv_bycell["organelle"].eq(orga),prop]
 df_corrcoef.reset_index(inplace=True)
 
 # Kullback–Leibler_divergence of different conditions
@@ -306,7 +312,7 @@ plt.close()
 
 
 
-columns = ['effective-length','cell-area','cell-volume',*properties]
+columns = ['cell length','cell area','cell volume',*properties]
 
 for folder in subfolders:
     # mutual information
@@ -349,21 +355,61 @@ for folder in subfolders:
             x=columns,y=columns,
             color_continuous_scale = "RdBu_r",range_color=[-1,1]
         )
+    fig.update_layout(
+        # font_family="Arial Black",
+        font_size=14
+    )
     # fig.write_html(f'{Path("./data/correlation")}/corrcoef_{folder}.html')
-    fig.write_html(f'{Path("./data/correlation")}/corrcoef-nocond_{folder}.html')
+    fig.write_html(f'{Path("./data/REBUTTAL_PLOTS/correlation")}/corrcoef-nocond_{folder}.html')
+    
+    # trivial visualization change:
+    # only keep lower half
+    rows,cols = corrcoef.shape
+    corrcoef_triangle_low = corrcoef.copy()
+    for r in range(rows-1):
+        for c in range(r+1,cols):
+            corrcoef_triangle_low[r,c] = 0
+    fig = px.imshow(
+            corrcoef_triangle_low,
+            x=columns,y=columns,
+            color_continuous_scale = "RdBu_r",range_color=[-1,1]
+        )
+    fig.update_layout(
+        # font_family="Arial Black",
+        font_size=14
+    )
+    fig.write_html(f'{Path("./data/REBUTTAL_PLOTS/correlation")}/corrcoef-nocond_{folder}_lower.html')
+    # only keep upper half
+    corrcoef_triangle_upp = corrcoef.copy()
+    for c in range(cols-1):
+        for r in range(c+1,rows):
+            corrcoef_triangle_upp[r,c] = 0
+    fig = px.imshow(
+            corrcoef_triangle_upp,
+            x=columns,y=columns,
+            color_continuous_scale = "RdBu_r",range_color=[-1,1]
+        )
+    fig.update_layout(
+        # font_family="Arial Black",
+        font_size=14
+    )
+    fig.update_xaxes(side="top")
+    fig.update_yaxes(side="right")
+    fig.write_html(f'{Path("./data/REBUTTAL_PLOTS/correlation")}/corrcoef-nocond_{folder}_upper.html')
 
-    for condi in df_corrcoef.loc[df_corrcoef["folder"].eq(folder),"condition"].unique():
-        np_corrcoef = df_corrcoef.loc[(df_corrcoef["folder"].eq(folder) & df_corrcoef['condition'].eq(condi)),columns].to_numpy()
-        corrcoef = np.corrcoef(np_corrcoef,rowvar=False)
-        fig = px.imshow(
-                corrcoef,
-                x=columns,y=columns,
-                color_continuous_scale="RdBu_r",range_color=[-1,1]
-            )
-        fig.write_html(f'{Path("./data/correlation")}/groupby_conditions/corrcoef-nocond_{folder}_{str(condi).replace(".","-")}.html')
+
+    # for condi in df_corrcoef.loc[df_corrcoef["folder"].eq(folder),"condition"].unique():
+    #     np_corrcoef = df_corrcoef.loc[(df_corrcoef["folder"].eq(folder) & df_corrcoef['condition'].eq(condi)),columns].to_numpy()
+    #     corrcoef = np.corrcoef(np_corrcoef,rowvar=False)
+    #     fig = px.imshow(
+    #             corrcoef,
+    #             x=columns,y=columns,
+    #             color_continuous_scale="RdBu_r",range_color=[-1,1]
+    #         )
+    #     fig.write_html(f'{Path("./data/correlation/rebuttal_202401")}/groupby_conditions/corrcoef-nocond_{folder}_{str(condi).replace(".","-")}.html')
 
     # # Pairwise relation atlas, super slow!
-    # fig_pair = sns.PairGrid(df_corrcoef,hue="condition",vars=['effective-length','cell-area','cell-volume',*properties],height=3.0)
+    # fig_pair = sns.PairGrid(df_corrcoef,hue="condition",vars=['cell length','cell area','cell volume',*properties],height=3.0)
     # fig_pair.map_diag(sns.histplot)
     # # f_pairig.map_offdiag(sns.scatterplot)
     # fig_pair.map_upper(sns.scatterplot)
@@ -560,7 +606,16 @@ for folder in subfolders:
         )
 
 # PCA 
-def make_pca_plots(experiment,property,groups=None,has_volume=False,is_normalized=False,non_organelle=False):
+def make_pca_plots(experiment,property,groups=None,has_volume=False,is_normalized=False,non_organelle=False,saveto="./data/"):
+    for pca_subfolder in [ "pca_data/",
+                           "pca_compare/",
+                           "pca_projection_extremes/",
+                           "pca_projection_all_plt/",
+                           "pca_projection_all/"
+                         ]:
+        if not (Path(saveto)/pca_subfolder).exists():
+            (Path(saveto)/pca_subfolder).mkdir()
+        continue
     folder = experiments[experiment]
     name = f"{'all-conditions' if groups is None else 'extremes'}_{'has-cytoplasm' if non_organelle else 'no-cytoplasm'}_{'cell-volume' if has_volume else 'organelle-only'}_{property}_{'norm-mean-std' if is_normalized else 'raw'}"
     print("PCA Anaysis: ",folder,name)
@@ -577,8 +632,8 @@ def make_pca_plots(experiment,property,groups=None,has_volume=False,is_normalize
         df_pca[orga] = df_orga_perfolder.loc[df_orga_perfolder["organelle"].eq(orga),property]
     
     if has_volume:
-        df_pca["cell-volume"] = df_orga_perfolder.loc[df_orga_perfolder["organelle"].eq("ER"),"cell-volume"]
-        columns = ["cell-volume",*columns]
+        df_pca["cell-volume"] = df_orga_perfolder.loc[df_orga_perfolder["organelle"].eq("ER"),"cell volume"]
+        columns = ["cell volume",*columns]
         num_pc += 1
     
     if is_normalized:
@@ -601,7 +656,7 @@ def make_pca_plots(experiment,property,groups=None,has_volume=False,is_normalize
 
     vec_centroid = vec_centroid_ended - vec_centroid_start
     vec_centroid = vec_centroid/np.linalg.norm(vec_centroid)
-    np.savetxt(f'{Path("./data/pca_data")}/condition-vector_{folder}_{name}.txt',vec_centroid)
+    np.savetxt(str(Path(saveto)/"pca_data/condition-vector_{folder}_{name}.txt"),vec_centroid)
 
     # Get Principal Components (PCs)
     np_pca = df_pca[columns].to_numpy()
@@ -617,36 +672,36 @@ def make_pca_plots(experiment,property,groups=None,has_volume=False,is_normalize
             pca_components[c] = -pca_components[c]
     cosine_pca = np.abs(cosine_pca)
     # save and plot PCs without sorting.
-    np.savetxt(f'data/pca_data/cosine_{folder}_{name}.txt',cosine_pca)
-    np.savetxt(f'data/pca_data/pca-components_{folder}_{name}.txt',pca_components)
-    np.savetxt(f'data/pca_data/pca-explained-ratio_{folder}_{name}.txt',pca_var_ratios)
+    np.savetxt(f'{saveto}/pca_data/cosine_{folder}_{name}.txt',cosine_pca)
+    np.savetxt(f'{saveto}/pca_data/pca-components_{folder}_{name}.txt',pca_components)
+    np.savetxt(f'{saveto}/pca_data/pca-explained-ratio_{folder}_{name}.txt',pca_var_ratios)
     fig_components = px.imshow(
         pca_components,
         x=columns, y=[f"PC{i}" for i in range(num_pc)],
         color_continuous_scale="RdBu_r", color_continuous_midpoint=0
     )
-    fig_components.write_html(f'data/pca_data/pca_components_{folder}_{name}.html')
+    fig_components.write_html(f'{saveto}/pca_data/pca_components_{folder}_{name}.html')
 
     # Sort PCs according to the cosine
     arg_cosine = np.argsort(cosine_pca)[::-1]
     pca_components_sorted = pca_components[arg_cosine]
     # save and plot the PCs with sorting
-    np.savetxt(f'data/pca_compare/condition-sorted-index_{folder}_{name}.txt',arg_cosine)
-    np.savetxt(f'data/pca_compare/condition-sorted-cosine_{folder}_{name}.txt',cosine_pca[arg_cosine])
-    np.savetxt(f'data/pca_compare/condition-sorted-pca-components_{folder}_{name}.txt',pca_components_sorted)
+    np.savetxt(f'{saveto}/pca_compare/condition-sorted-index_{folder}_{name}.txt',arg_cosine)
+    np.savetxt(f'{saveto}/pca_compare/condition-sorted-cosine_{folder}_{name}.txt',cosine_pca[arg_cosine])
+    np.savetxt(f'{saveto}/pca_compare/condition-sorted-pca-components_{folder}_{name}.txt',pca_components_sorted)
     fig_components_sorted = px.imshow(
         pca_components_sorted,
         x=columns, y=[f"PC{i}" for i in arg_cosine],
         color_continuous_scale="RdBu_r", color_continuous_midpoint=0
     )
-    fig_components_sorted.write_html(f'data/pca_compare/condition-sorted-pca_components_{folder}_{name}.html')
+    fig_components_sorted.write_html(f'{saveto}/pca_compare/condition-sorted-pca_components_{folder}_{name}.html')
     # plot the cosine 
     plt.figure(figsize=(15,12))
     plt.barh(np.arange(num_pc),cosine_pca[arg_cosine[::-1]],align='center')
     plt.yticks(np.arange(num_pc),[f"PC{i}" for i in arg_cosine[::-1]])
     plt.xlabel(r"$cos\left<condition\ vector,PC\right>$")
     plt.title(f"{folder}")
-    plt.savefig(f'data/pca_compare/condition-sorted-cosine_{folder}_{name}.png')
+    plt.savefig(f'{saveto}/pca_compare/condition-sorted-cosine_{folder}_{name}.png')
     plt.close()
 
 
@@ -666,7 +721,7 @@ def make_pca_plots(experiment,property,groups=None,has_volume=False,is_normalize
         pc_z = df_pca_extremes.loc[df_pca_extremes["condition"].eq(condi),f"proj{pc2proj[2]}"],
         ax.scatter(
             pc_x, pc_y, pc_z,
-            s=49,alpha=0.2,label=f"{condi}"
+            s=55,alpha=0.3,label=f"{condi}"
         )
     ax.set_xlabel(f"proj {pc2proj[0]}")
     ax.set_ylabel(f"proj {pc2proj[1]}")
@@ -681,7 +736,7 @@ def make_pca_plots(experiment,property,groups=None,has_volume=False,is_normalize
     ax.set_ylim(*(np.percentile(df_pca_extremes[f"proj{pc2proj[1]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
     ax.set_zlim(*(np.percentile(df_pca_extremes[f"proj{pc2proj[2]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
     ax.legend(loc=(1.04,1.0))
-    figproj.savefig(f'data/pca_projection_extremes/pca_projection3d_{folder}_{name}_pc{"".join([str(p) for p in pc2proj])}.png')
+    figproj.savefig(f'{saveto}/pca_projection_extremes/pca_projection3d_{folder}_{name}_pc{"".join([str(p) for p in pc2proj])}.png')
     plt.close(figproj)
 
     # 3d projections, all conditions
@@ -697,7 +752,7 @@ def make_pca_plots(experiment,property,groups=None,has_volume=False,is_normalize
         ax.scatter(
             pc_x, pc_y, pc_z,
             edgecolor='white',facecolor=sns.color_palette('tab10')[0],
-            s=49,alpha=0.2,label=f"{groups[-1]}"
+            s=55,alpha=0.3,label=f"{groups[-1]}"
         )
         
         pc_x = df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[0]}"],
@@ -706,7 +761,7 @@ def make_pca_plots(experiment,property,groups=None,has_volume=False,is_normalize
         ax.scatter(
             pc_x, pc_y, pc_z,
             edgecolor='white',facecolor=sns.color_palette('tab10')[list_colors[experiment][d]],
-            s=49,alpha=0.2,label=f"{condi}"
+            s=55,alpha=0.3,label=f"{condi}"
         )
         ax.set_xlabel(f"proj {pc2proj[0]}")
         ax.set_ylabel(f"proj {pc2proj[1]}")
@@ -721,7 +776,7 @@ def make_pca_plots(experiment,property,groups=None,has_volume=False,is_normalize
         ax.set_ylim(*(np.percentile(df_pca_extremes[f"proj{pc2proj[1]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
         ax.set_zlim(*(np.percentile(df_pca_extremes[f"proj{pc2proj[2]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
         ax.legend(loc=(1.04,0.5))
-        figproj.savefig(f'./data/pca_projection_all_plt/pca_projection3d_{folder}_{name}_condi-{str(condi).replace(".","-")}_pc{"".join([str(p) for p in pc2proj])}.png')
+        figproj.savefig(f'{saveto}/pca_projection_all_plt/pca_projection3d_{folder}_{name}_condi-{str(condi).replace(".","-")}_pc{"".join([str(p) for p in pc2proj])}.png')
         plt.close(figproj)
  
     # 2d projections
@@ -731,14 +786,14 @@ def make_pca_plots(experiment,property,groups=None,has_volume=False,is_normalize
         sns_plot = sns.scatterplot(
             data=df_pca_extremes[df_pca_extremes["condition"].eq(groups[0])],
             x=f"proj{pc2proj[first]}",y=f"proj{pc2proj[second]}",
-            color=sns.color_palette("tab10")[1],s=49,alpha=0.5
+            color=sns.color_palette("tab10")[1],s=100,alpha=0.75
         )
         sns_plot = sns.scatterplot(
             data=df_pca_extremes[df_pca_extremes["condition"].eq(groups[1])],
             x=f"proj{pc2proj[first]}",y=f"proj{pc2proj[second]}",
-            color=sns.color_palette("tab10")[0],s=49,alpha=0.5
+            color=sns.color_palette("tab10")[0],s=100,alpha=0.75
         )
-        sns_plot.figure.savefig(f'data/pca_projection_extremes/pca_projection2d_{folder}_{name}_pc{pc2proj[first]}{pc2proj[second]}.png')
+        sns_plot.figure.savefig(f'{saveto}/pca_projection_extremes/pca_projection2d_{folder}_{name}_pc{pc2proj[first]}{pc2proj[second]}.png')
         plt.close()
 
     # 2d projections, all conditions
@@ -750,68 +805,68 @@ def make_pca_plots(experiment,property,groups=None,has_volume=False,is_normalize
             sns_plot = sns.scatterplot(
                 data=df_pca[df_pca["condition"].eq(groups[1])],
                 x=f"proj{pc2proj[first]}",y=f"proj{pc2proj[second]}",
-                color=sns.color_palette("tab10")[0],s=49,alpha=0.5
+                color=sns.color_palette("tab10")[0],s=100,alpha=0.75
             )
             sns_plot = sns.scatterplot(
                 data=df_pca[df_pca["condition"].eq(condi)],
                 x=f"proj{pc2proj[first]}",y=f"proj{pc2proj[second]}",
-                color=sns.color_palette("tab10")[list_colors[experiment][d]],s=49,alpha=0.5
+                color=sns.color_palette("tab10")[list_colors[experiment][d]],s=100,alpha=0.75
             )
             plt.xlim(*(np.percentile(df_pca_extremes[f"proj{pc2proj[first]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
             plt.ylim(*(np.percentile(df_pca_extremes[f"proj{pc2proj[second]}"].to_numpy(),[1,99])+np.array([-0.1,0.1])))
-            sns_plot.figure.savefig(f'{Path("./data/pca_projection_all_plt")}/pca_projection2d_{folder}_{name}_condi-{str(condi).replace(".","-")}_pc{pc2proj[first]}{pc2proj[second]}.png')
+            sns_plot.figure.savefig(f'{saveto}/pca_projection_all_plt/pca_projection2d_{folder}_{name}_condi-{str(condi).replace(".","-")}_pc{pc2proj[first]}{pc2proj[second]}.png')
             plt.close()
 
-    # # draw with Plotly:
-    # figproj = go.Figure()
-    # for condi in pd.unique(df_pca["condition"]):
-    #     figproj.add_trace(
-    #         go.Scatter3d(
-    #             x=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[0]}"],
-    #             y=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[1]}"],
-    #             z=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[2]}"],
-    #             name=condi,
-    #             mode="markers",
-    #             marker=dict(
-    #                         size=2,
-    #                         # color=figcolors[j],
-    #                         opacity=0.8
-    #                    )   
-    #         )
-    #     )
-    # figproj.update_layout(
-    #     scene=dict(
-    #         xaxis=dict(
-    #             title=f"proj{pc2proj[0]}",
-    #             backgroundcolor='rgba(0,0,0,0)',
-    #             gridcolor='grey',
-    #             showline = True,
-    #             zeroline=True,
-    #             zerolinecolor='black'
-    #         ),
-    #         yaxis=dict(
-    #             title=f"proj{pc2proj[1]}",
-    #             backgroundcolor='rgba(0,0,0,0)',
-    #             gridcolor='grey',
-    #             showline=True,
-    #             zeroline=True,
-    #             zerolinecolor='black'
-    #         ),
-    #         zaxis=dict(
-    #             title=f"proj{pc2proj[2]}",
-    #             backgroundcolor='rgba(0,0,0,0)',
-    #             gridcolor='grey',
-    #             showline = True,
-    #             zeroline=True,
-    #             zerolinecolor='black'
-    #         )
-    #     )
-    # )
-    # figproj.write_html(f'{Path("./data/pca_projection_all")}/pca_projection3d_{folder}_{name}_pc{"".join([str(p) for p in pc2proj])}.html')
+    # draw interactive HTML with Plotly:
+    figproj = go.Figure()
+    for condi in pd.unique(df_pca["condition"]):
+        figproj.add_trace(
+            go.Scatter3d(
+                x=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[0]}"],
+                y=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[1]}"],
+                z=df_pca.loc[df_pca["condition"].eq(condi),f"proj{pc2proj[2]}"],
+                name=condi,
+                mode="markers",
+                marker=dict(
+                            size=4,
+                            # color=figcolors[j],
+                            opacity=0.8
+                       )   
+            )
+        )
+    figproj.update_layout(
+        scene=dict(
+            xaxis=dict(
+                title=f"proj{pc2proj[0]}",
+                backgroundcolor='rgba(0,0,0,0)',
+                gridcolor='grey',
+                showline = True,
+                zeroline=True,
+                zerolinecolor='black'
+            ),
+            yaxis=dict(
+                title=f"proj{pc2proj[1]}",
+                backgroundcolor='rgba(0,0,0,0)',
+                gridcolor='grey',
+                showline=True,
+                zeroline=True,
+                zerolinecolor='black'
+            ),
+            zaxis=dict(
+                title=f"proj{pc2proj[2]}",
+                backgroundcolor='rgba(0,0,0,0)',
+                gridcolor='grey',
+                showline = True,
+                zeroline=True,
+                zerolinecolor='black'
+            )
+        )
+    )
+    figproj.write_html(f'{Path(f"{saveto}/pca_projection_all")}/pca_projection3d_{folder}_{name}_pc{"".join([str(p) for p in pc2proj])}.html')
     return None
 
 for experiment in exp_names:
-    make_pca_plots(experiment,"total-fraction",groups=extremes[experiments[experiment]],has_volume=False,is_normalized=True,non_organelle=False)
+    make_pca_plots(experiment,"total-fraction",groups=extremes[experiments[experiment]],has_volume=False,is_normalized=True,non_organelle=False,saveto="data/REBUTTAL_PLOTS")
 
 
 dict_pc        = {}
@@ -963,7 +1018,7 @@ plt.close()
 
 
 # generalize to other pairs of volumes.
-def plot_loglog_vol(experiment):
+def plot_loglog_vol(experiment,output=""):
     df_loglogs = df_bycell.loc[df_bycell["folder"].eq(experiments[experiment]) & df_bycell["organelle"].eq("ER"),["condition","cell-volume"]]
     df_loglogs = df_loglogs.reset_index().drop("index",axis=1)
     df_loglogs["cell-volume"] = np.log(df_loglogs["cell-volume"])
@@ -1003,14 +1058,14 @@ def plot_loglog_vol(experiment):
                 ])
             dfs2fit = pd.concat(dfs2fit,ignore_index=True)
             dfs2go  = pd.concat(dfs2go, ignore_index=True)
-            # fitted[i,j] = LinearRegression().fit(dfs2fit[prop2].to_numpy().reshape(-1,1),dfs2fit[prop1]).coef_[0]
-            fitted[i,j] = scipy.odr.ODR(
-                    scipy.odr.Data(
-                        dfs2fit[prop2].to_numpy(),
-                        dfs2fit[prop1].to_numpy()
-                    ),
-                    scipy.odr.unilinear
-                ).run().beta[0]
+            fitted[i,j] = LinearRegression().fit(dfs2fit[prop2].to_numpy().reshape(-1,1),dfs2fit[prop1]).coef_[0]
+            # fitted[i,j] = scipy.odr.ODR(
+            #         scipy.odr.Data(
+            #             dfs2fit[prop2].to_numpy(),
+            #             dfs2fit[prop1].to_numpy()
+            #         ),
+            #         scipy.odr.unilinear
+            #     ).run().beta[0]
             for k,condi in enumerate(uniq_conds):
                 pairplots[i,j].scatter(
                     dfs2fit.loc[dfs2fit["condition"].eq(condi),prop2],
@@ -1029,20 +1084,22 @@ def plot_loglog_vol(experiment):
                 [xmin,xmax],[k*(xmin-xmean)+ymean,k*(xmax-xmean)+ymean],
                 'k--'
             )
-            if i==7:
-                pairplots[i,j].set_xlabel(f"log[V({prop2})]")
-            if j==0:
-                pairplots[i,j].set_ylabel(f"log[V({prop1})]")
+            # if i==7:
+            #     pairplots[i,j].set_xlabel(f"log[V({prop2})]")
+            # if j==0:
+            #     pairplots[i,j].set_ylabel(f"log[V({prop1})]")
     pairplots[7,7].legend()
-    # fig_pair.savefig(f"data/power_law/pairwise_{experiment}.png")
-    # np.savetxt(f"data/power_law/pairwise_{experiment}.txt",fitted)
-    fig_pair.savefig(f"data/power_law/symmetric_pairwise_{experiment}.png")
-    np.savetxt(f"data/power_law/symmetric_pairwise_{experiment}.txt",fitted)
+    if not Path(f"{output}/power_law/").exists():
+        Path(f"{output}/power_law/").mkdir()
+    fig_pair.savefig(f"{output}/power_law/pairwise_{experiment}.png")
+    np.savetxt(f"{output}/power_law/pairwise_{experiment}.txt",fitted)
+    # fig_pair.savefig(f"{output}/power_law/symmetric_pairwise_{experiment}.png")
+    # np.savetxt(f"{output}/power_law/symmetric_pairwise_{experiment}.txt",fitted)
     print(f"Pairwise log-log regression: {experiment}")
     return None
 
 for exps in exp_names:
-    plot_loglog_vol(exps)
+    plot_loglog_vol(exps,output="data/REBUTTAL_PLOTS")
 
 # plt.rcParams['font.size'] = '24'
 # plt.figure()
@@ -1088,8 +1145,8 @@ plt.close
 
 # Errorbar plot of V_cyto vs. growth rate
 df_glu_cyto_rate = df_bycell.loc[df_bycell["folder"].eq("EYrainbow_glucose_largerBF")&df_bycell["organelle"].eq("non-organelle")]
-df_glu_cyto_rate_bycondi = df_glu_cyto_rate.groupby("condition").mean()
-df_glu_cyto_rate_bycondi["fraction-std"] = df_glu_cyto_rate.groupby("condition").std()["total-fraction"]
+df_glu_cyto_rate_bycondi = df_glu_cyto_rate[["condition","mean","total","cell-area","cell-volume","total-fraction","growth_rate"]].groupby("condition").mean()
+df_glu_cyto_rate_bycondi["fraction-std"] = df_glu_cyto_rate[["condition","mean","total","cell-area","cell-volume","total-fraction","growth_rate"]].groupby("condition").std()["total-fraction"]
 df_glu_cyto_rate_bycondi.reset_index(inplace=True)
 
 plt.figure(figsize=(12,10))
@@ -1102,7 +1159,7 @@ for i,condi in enumerate(np.sort(df_glu_cyto_rate["condition"].unique())):
         label=f"{condi/100*2}% glucose",
         fmt='o',capsize=10,markersize=20,alpha=0.5
     )
-    plt.ylim(0.,1.)
+    plt.ylim(0.,0.7)
 plt.xlabel("Growth Rate (hour$^{-1}$)")
 plt.ylabel(r"Cytoplasmic Volume Fraction")
 # ax_cyto_rate = plt.gca()
@@ -1110,7 +1167,7 @@ plt.ylabel(r"Cytoplasmic Volume Fraction")
 # handles = [h[0] if isinstance(h, container.ErrorbarContainer) else h for h in handles]
 # ax_cyto_rate.legend(handles, labels)
 plt.tight_layout()
-plt.savefig("data/power_law/cytofraction_vs_growthrate_sem.png")
+plt.savefig("data/REBUTTAL_PLOTS/power_law/cytofraction_vs_growthrate_sem.png")
 plt.close()
 
 # Errorbar plot of V_vacuole vs. growth rate
