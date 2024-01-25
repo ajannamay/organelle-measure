@@ -26,11 +26,13 @@ def segment(th, pred, min_distance=10, topology=None):
     elif callable(topology):
         topology = topology(dtr)
 
-    m = peak_local_max(-topology, min_distance, indices=False)
-    
+    m = peak_local_max(-topology, min_distance)
+    m_lab = np.zeros_like(topology,dtype=int)
+    for coords in m:
+        m_lab[tuple(coords)] = 1
     # Uncomment to start with cross for every pixel instead of single pixel
-    m_lab = label(m) #comment this
-    #m_dil = dilation(m)
+    m_lab = label(m_lab) #comment this
+    #m_dil = dilation(m_lab)
     #m_lab = label(m_dil)
     wsh = watershed(topology, m_lab, mask=th, connectivity=2)
     merged = cell_merge(wsh, pred)

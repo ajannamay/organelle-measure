@@ -17,7 +17,7 @@ yeaz_preprocesses = [
     lambda x: (x-x.min())/(x.max()-x.min())
 ]
 
-def yeaz_label(img_i,min_dist):
+def yeaz_label(img_i,min_dist,**kwargs):
     """
     Use YeaZ without GUI to segment cells in an image.
     INPUT:  
@@ -26,7 +26,7 @@ def yeaz_label(img_i,min_dist):
     OUTPUT: img_o, a 2-D uint label image, same shape as img_i.
     """
     img_exposure  = exposure.equalize_adapthist(img_i)
-    img_predict   = neural_network.prediction(img_exposure,mic_type="bf",device=torch.device("cuda"))
+    img_predict   = neural_network.prediction(img_exposure,mic_type="bf",device=torch.device("cuda"),**kwargs)
     img_threshold = neural_network.threshold(img_predict)
     img_segment   = segment.segment(
                                     img_threshold,img_predict,
