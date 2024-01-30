@@ -1093,8 +1093,6 @@ def plot_loglog_vol(experiment,output=""):
         Path(f"{output}/power_law/").mkdir()
     fig_pair.savefig(f"{output}/power_law/pairwise_{experiment}.png")
     np.savetxt(f"{output}/power_law/pairwise_{experiment}.txt",fitted)
-    # fig_pair.savefig(f"{output}/power_law/symmetric_pairwise_{experiment}.png")
-    # np.savetxt(f"{output}/power_law/symmetric_pairwise_{experiment}.txt",fitted)
     print(f"Pairwise log-log regression: {experiment}")
     return None
 
