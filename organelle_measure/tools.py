@@ -100,7 +100,7 @@ def find_complete_rings(skeleton3d):
     core3d = np.zeros_like(skeleton3d,dtype=int)
     for z in range(core3d.shape[0]):
         skeleton3d[z] = segmentation.clear_border(skeleton3d[z])
-        core3d[z] = measure.label(morphology.flood_fill(~skeleton3d[z],(0,0),False,selem=morphology.disk(1)))
+        core3d[z] = measure.label(morphology.flood_fill(~skeleton3d[z],(0,0),False,footprint=morphology.disk(1)))
     return core3d
 def intersection_over_union(bool1,bool2):
     return np.count_nonzero(bool1*bool2)/np.count_nonzero(bool1+bool2)
