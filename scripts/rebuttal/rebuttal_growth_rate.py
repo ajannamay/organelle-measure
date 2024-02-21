@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
+# import seaborn as sns
 from sklearn.linear_model import LinearRegression
 
 plt.xlabel("Time / min")
@@ -191,4 +191,31 @@ plt.xticks(
 plt.xlabel("Glucose Concentration")
 plt.ylabel(r"1 / Doubling Time (hour$^{-1}$)")
 plt.savefig("data/growthrate/rebuttal_growth_rate_errorbar.png",dpi=600)
+
+# data from replicates
+od_replicate = pd.read_csv("data/growthrate/rebuttal_OD_replicate.csv")
+od_replicate["time"] = pd.to_datetime(od_replicate["time"],format="%H:%M")
+first_times = od_replicate[["group","replicate","time"]].groupby(["group","replicate"]).first()
+first_ODs = od_replicate[["group","replicate","OD"]].groupby(["group","replicate"]).first()
+od_replicate.set_index(["group","replicate"],inplace=True)
+od_replicate["first_times"] = first_times
+od_replicate["first_ODs"] = first_ODs
+od_replicate["minute"] = (od_replicate["time"] - od_replicate["first_times"]).dt.total_seconds()/60.0
+od_replicate["normalized"] = od_replicate["OD"] / od_replicate["first_ODs"]
+od_replicate.reset_index(inplace=True)
+
+
+linear = LinearRegression(fit_intercept=False)
+rates = []
+means = []
+stdrs = []
+for cond in (conditions:=od_replicate["condition"].unique()):
+    df_cond = od_replicate[od_replicate["condition"].eq(cond)]
+    cond_hour = df_cond.loc[:,"minute"].to_numpy()/60.0
+    cond_norm = df_cond.loc[:,"normalized"].to_numpy()
+    linear.fit(
+                cond_hour.reshape(-1,1),
+        np.log2(cond_norm)
+    )
+    rates.append()
 
