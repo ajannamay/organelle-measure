@@ -15,14 +15,7 @@ organelles = [
 ]
 
 subfolders = [
-    "EYrainbow_glucose",
     "EYrainbow_glucose_largerBF",
-    "EYrainbow_rapamycin_1stTry",
-    "EYrainbow_rapamycin_CheckBistability",
-    "EYrainbow_1nmpp1_1st",
-    "EYrainbow_leucine_large",
-    "EYrainbow_leucine",
-    "EYrainbowWhi5Up_betaEstrodiol"
 ]
 bycell_6color = read_results(Path("./data/results"),subfolders,(px_x,px_y,px_z))
 bycell_6color = bycell_6color.loc[
