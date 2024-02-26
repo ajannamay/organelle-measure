@@ -1,14 +1,13 @@
-data/
-test/
+# specific to this project
 images/
+**/pairwise_rebuttal.png
+*.nd2
+# unet weight file
+organelle_measure/unet/weights*
 
 # python
 __pycache__/
 *.py[cod]
 *$py.class
 *.egg-info/
-
 .pytest_cache
-
-# unet weight file
-organelle_measure/unet/weights*
