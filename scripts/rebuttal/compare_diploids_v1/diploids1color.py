@@ -20,7 +20,8 @@ for parent in [
 		Path.mkdir(long)
 
 # Segment Cells
-for path_cell in Path(f"images/raw/{FOLDER}").glob("*camera*.nd2"):
+# for path_cell in Path(f"images/raw/{FOLDER}").glob("*camera*.nd2"):
+for path_cell in Path(f"images/raw/{FOLDER}").glob("gl_camera*.nd2"):
 	with ND2Reader(str(path_cell)) as nd2:
 		nd2.bundle_axes = "yx"
 		nd2.iter_axes = 't'
@@ -43,7 +44,9 @@ for path_cell in Path(f"images/raw/{FOLDER}").glob("*camera*.nd2"):
 		util.img_as_uint(output)
 	)
 
+
 # Preprocess
+
 # peroxisome
 path = Path(f"images/raw/{FOLDER}/px_unmixed-blue_diploid1color_field-1.nd2")
 with ND2Reader(str(path)) as nd2:
@@ -55,6 +58,7 @@ io.imsave(
 	f"images/preprocessed/{FOLDER}/preprocessed_peroxisome_diploids1color.tif",
 	util.img_as_uint(gauss)
 )
+
 # # vacuole, did NOT see signal
 # path = Path(f"images/raw/{FOLDER}/vo_spectra-blue_diploid1color_field-1.nd2")
 # with ND2Reader(str(path)) as nd2:
@@ -66,6 +70,7 @@ io.imsave(
 # 	f"images/preprocessed/{FOLDER}/preprocessed_vacuole_diploids1color.tif",
 # 	util.img_as_uint(gauss)
 # )
+
 # ER
 path = Path(f"images/raw/{FOLDER}/er_spectra-green_diploid1color_field-1.nd2")
 with ND2Reader(str(path)) as nd2:
@@ -77,10 +82,11 @@ io.imsave(
 	f"images/preprocessed/{FOLDER}/preprocessed_ER_diploids1color.tif",
 	util.img_as_uint(gauss)
 )
+
 # golgi
-path_cell = Path(f"images/cell/{FOLDER}/gl_camera-after_diploid1color_field-1.tif")
+path_cell = Path(f"images/cell/{FOLDER}/spectral_gl_camera-after_diploid1color_field-1.tif")
 cell = io.imread(str(path_cell))
-path = Path(f"images/raw/{FOLDER}/gl_spectra-yellow_diploid1color_field-1.nd2")
+path = Path(f"images/raw/{FOLDER}/spectral_gl_spectra-yellow_diploid1color_field-1.nd2")
 with ND2Reader(str(path)) as nd2:
 	nd2.bundle_axes = "czyx"
 	nd2.iter_axes = 't'
@@ -94,6 +100,18 @@ io.imsave(
 	f"images/preprocessed/{FOLDER}/preprocessed_golgi_diploids1color.tif",
 	util.img_as_uint(gauss)
 )
+
+path = Path(f"images/raw/{FOLDER}/gl_spectra-yellow_diploid1color_field-1.nd2")
+with ND2Reader(str(path)) as nd2:
+	nd2.bundle_axes = "zyx"
+	nd2.iter_axes = 't'
+	image = nd2[0]
+gauss = filters.gaussian(image,sigma=0.75,preserve_range=True).astype(int)
+io.imsave(
+	f"images/preprocessed/{FOLDER}/preprocessed_golgi_diploids1color.tif",
+	util.img_as_uint(gauss)
+)
+
 # mitochondria
 path_cell = Path(f"images/cell/{FOLDER}/mt_camera-after_diploid1color_field-1.tif")
 cell = io.imread(str(path_cell))
@@ -110,6 +128,7 @@ io.imsave(
 	f"images/preprocessed/{FOLDER}/preprocessed_mitochondria_diploids1color.tif",
 	util.img_as_uint(gauss)
 )
+
 # LD
 path_cell = Path(f"images/cell/{FOLDER}/ld_camera-after_diploid1color_field-1.tif")
 cell = io.imread(str(path_cell))
@@ -127,6 +146,7 @@ io.imsave(
 	util.img_as_uint(gauss)
 )
 
+
 # after Ilastik, Postprocess
 # peroxisome, golgi, lipid droplet
 for path in [
@@ -143,6 +163,7 @@ for path in [
 		f"images/labelled/{FOLDER}/{path_ref.name.partition('_')[2]}",
 		util.img_as_uint(output)
 	)
+
 # mitochondria
 path = Path(f"images/preprocessed/{FOLDER}/Probabilities_preprocessed_mitochondria_diploids1color.tiff")
 img = io.imread(str(path))
