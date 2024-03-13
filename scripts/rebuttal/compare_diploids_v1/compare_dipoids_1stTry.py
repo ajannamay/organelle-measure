@@ -14,13 +14,13 @@ organelles = [
     "LD"
 ]
 
+
 subfolders = [
     "EYrainbow_glucose_largerBF",
 ]
 bycell_6color = read_results(Path("./data/results"),subfolders,(px_x,px_y,px_z))
 bycell_6color = bycell_6color.loc[
-									bycell_6color["folder"].eq("EYrainbow_glucose_largerBF")
-								  & bycell_6color["condition"].eq(100)
+									bycell_6color["condition"].eq(100)
 								 ]
 bycell_6color.rename(
 	columns={
@@ -33,6 +33,39 @@ bycell_6color.rename(
 	inplace=True
 )
 
+
+# 1-color cells
+dfs_read = []
+for path in Path("data/results/2024-02-16_rebuttal1color").glob("*.csv"):
+	dfs_read.append(pd.read_csv(str(path)))
+df_1color = pd.concat(dfs_read,ignore_index=True)
+df_1color["volume-um3"] = (px_x*px_y*px_z)*df_1color["area"]
+df_1color.loc[df_1color["organelle"].eq("vacuole"),"volume-um3"] = (
+	(px_x * px_y * df_1color.loc[df_1color["organelle"].eq("vacuole"),"area"])
+	*2
+	*np.sqrt(
+		px_x * px_y * df_1color.loc[df_1color["organelle"].eq("vacuole"),"area"]
+		/np.pi
+	)
+)
+df_1color["cell-volume-um3"] = (
+	(px_x * px_y * df_1color["cell-area"])
+	*2
+	*np.sqrt(
+		px_x * px_y * df_1color["cell-area"]
+		/np.pi
+	)
+)
+
+bycell_1color = df_1color[["organelle","cell-idx","cell-volume-um3"]].groupby(["organelle","cell-idx"]).mean()
+bycell_1color["mean-um3"]  = df_1color[["organelle","cell-idx","volume-um3"]].groupby(["organelle","cell-idx"]).mean()
+bycell_1color["total-um3"] = df_1color[["organelle","cell-idx","volume-um3"]].groupby(["organelle","cell-idx"]).sum()
+bycell_1color["count"]     = df_1color[["organelle","cell-idx","volume-um3"]].groupby(["organelle","cell-idx"]).count()
+bycell_1color["volume-fraction"] = bycell_1color["total-um3"] / bycell_1color["cell-volume-um3"]
+bycell_1color.reset_index(inplace=True)
+
+
+# 3-color cells
 dfs_read = []
 for path in Path("data/results/2024-02-06_paperRebuttal3Colors").glob("*.csv"):
 	dfs_read.append(pd.read_csv(str(path)))
@@ -63,35 +96,6 @@ bycell_3color["volume-fraction"] = bycell_3color["total-um3"] / bycell_3color["c
 bycell_3color.reset_index(inplace=True)
 
 
-dfs_read = []
-for path in Path("data/results/2024-02-16_rebuttal1color").glob("*.csv"):
-	dfs_read.append(pd.read_csv(str(path)))
-df_1color = pd.concat(dfs_read,ignore_index=True)
-df_1color = pd.concat(dfs_read,ignore_index=True)
-df_1color["volume-um3"] = (px_x*px_y*px_z)*df_1color["area"]
-df_1color.loc[df_1color["organelle"].eq("vacuole"),"volume-um3"] = (
-	(px_x * px_y * df_1color.loc[df_1color["organelle"].eq("vacuole"),"area"])
-	*2
-	*np.sqrt(
-		px_x * px_y * df_1color.loc[df_1color["organelle"].eq("vacuole"),"area"]
-		/np.pi
-	)
-)
-df_1color["cell-volume-um3"] = (
-	(px_x * px_y * df_1color["cell-area"])
-	*2
-	*np.sqrt(
-		px_x * px_y * df_1color["cell-area"]
-		/np.pi
-	)
-)
-
-bycell_1color = df_1color[["organelle","cell-idx","cell-volume-um3"]].groupby(["organelle","cell-idx"]).mean()
-bycell_1color["mean-um3"]  = df_1color[["organelle","cell-idx","volume-um3"]].groupby(["organelle","cell-idx"]).mean()
-bycell_1color["total-um3"] = df_1color[["organelle","cell-idx","volume-um3"]].groupby(["organelle","cell-idx"]).sum()
-bycell_1color["count"]     = df_1color[["organelle","cell-idx","volume-um3"]].groupby(["organelle","cell-idx"]).count()
-bycell_1color["volume-fraction"] = bycell_1color["total-um3"] / bycell_1color["cell-volume-um3"]
-bycell_1color.reset_index(inplace=True)
 
 # Plot
 for organelle in organelles:

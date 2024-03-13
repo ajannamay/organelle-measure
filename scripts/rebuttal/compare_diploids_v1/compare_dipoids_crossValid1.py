@@ -131,7 +131,6 @@ bycell_1segmented_by6.reset_index(inplace=True)
 
 
 # Plot
-
 for organelle in organelles:
 	for property in ["mean-um3","total-um3","volume-fraction","count"]:
 		plt.figure()

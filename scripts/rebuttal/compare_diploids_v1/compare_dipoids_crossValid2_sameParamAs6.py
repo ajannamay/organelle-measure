@@ -15,9 +15,7 @@ organelles = [
 ]
 
 # 6-color cells segmented by 6-color ilastik
-subfolders = [
-    "EYrainbow_glucose_largerBF"
-]
+subfolders = ["EYrainbow_glucose_largerBF"]
 bycell_6segmented_by6 = read_results(Path("./data/"),subfolders,(px_x,px_y,px_z))
 bycell_6segmented_by6 = bycell_6segmented_by6.loc[bycell_6segmented_by6["condition"].eq(100)]
 bycell_6segmented_by6.rename(
@@ -31,6 +29,20 @@ bycell_6segmented_by6.rename(
 	inplace=True
 )
 
+# 6-color 8-hour data
+subfolders = ["paperRebuttal"]
+bycell_8hours = read_results(Path("./data/"),subfolders,(px_x,px_y,px_z))
+bycell_8hours = bycell_8hours.loc[bycell_8hours["condition"].eq(100)]
+bycell_8hours.rename(
+	columns={
+		"idx-cell"      : "cell-idx",
+		"cell-volume"   : "cell-volume-um3",
+		"mean"          : "mean-um3",
+		"total"         : "total-um3",
+		"total-fraction": "volume-fraction"
+	},
+	inplace=True
+)
 
 # 1-color cells segmented by 1-color ilastik
 dfs_read = []
@@ -131,7 +143,6 @@ bycell_1segmented_by6.reset_index(inplace=True)
 
 
 # Plot
-
 for organelle in organelles:
 	for property in ["mean-um3","total-um3","volume-fraction","count"]:
 		plt.figure()

@@ -6,7 +6,7 @@ from skimage import io,util,segmentation,measure,filters
 from organelle_measure.yeaz import yeaz_preprocesses,yeaz_label
 from organelle_measure.tools import skeletonize_zbyz,neighbor_mean,find_complete_rings
 
-FOLDER1 = "2024-02-16_rebuttal1color"
+FOLDER1 = "2024-02-16_rebuttal1color" # seems outdated after folder re-organization (Nope, only for some cases. bad)
 FOLDER6 = "EYrainbow_glucose_largerBF"
 nickname = "SameParamAs6"
 
@@ -42,6 +42,18 @@ for organelle in ["peroxisome","golgi","LD"]:
 			f"images/labelled/{FOLDER1}/{nickname}_{path_ref.name}",
 			util.img_as_uint(output)
 		)
+
+# golgi, confocal not spectral
+path = Path(f"images/preprocessed/{FOLDER1}/{nickname}_preprocessed_golgi_diploids1color.tiff")
+img = io.imread(str(path))
+img = (img>0.5)
+path_ref = path.parent / f"{path.stem.partition('_')[2]}.tif"
+ref = io.imread(str(path_ref))
+output = segmentation.watershed(-ref,mask=img)
+io.imsave(
+	f"images/labelled/rebuttal_diploid_comparison/1color-cells_1color-10param-ilastik/{nickname}_{path_ref.name.partition('_')[2]}",
+	util.img_as_uint(output)
+)
 
 # mitochondria
 path = Path(f"images/preprocessed/{FOLDER1}/{nickname}_preprocessed_mitochondria_diploids1color.tiff")
@@ -103,12 +115,12 @@ for path in Path(f"images/preprocessed/{FOLDER6}").glob(f"{nickname}_ER*.tiff"):
 
 # Measure
 organelles = [
-	"peroxisome",
+	# "peroxisome",
 	# "vacuole",
-	"ER",
+	# "ER",
 	"golgi",
-	"mitochondria",
-	"LD"
+	# "mitochondria",
+	# "LD"
 ]
 
 # single-color
@@ -122,7 +134,7 @@ imgs_cell = {
 }
 for organelle in organelles:
 	path_cell      = Path(f"images/cell/{FOLDER1}/{imgs_cell[organelle]}")
-	path_organelle = Path(f"images/labelled/{FOLDER1}/{nickname}_{organelle}_diploids1color.tif")
+	path_organelle = Path(f"images/labelled/rebuttal_diploid_comparison/1color-cells_1color-10param-ilastik/{nickname}_{organelle}_diploids1color.tif")
 	
 	img_cell      = io.imread(str(path_cell))
 	img_organelle = io.imread(str(path_organelle))
@@ -176,7 +188,7 @@ for organelle in organelles:
 		measured = measured | measured_orga
 		results.append(pd.DataFrame(measured))
 	result = pd.concat(results,ignore_index=True)
-	result.to_csv(f"data/{FOLDER1}/{nickname}_{organelle}.csv",index=False)
+	result.to_csv(f"data/rebuttal_diploid_comparison/1color-cells_1color-10param-ilastik/{nickname}_{organelle}.csv",index=False)
 # six-color
 for path_cell in Path(f"images/cell/{FOLDER6}").glob(f"binCell_EYrainbow_glu-100_field-*.tif"):
 	for organelle in organelles:
