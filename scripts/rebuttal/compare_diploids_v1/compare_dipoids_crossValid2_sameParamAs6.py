@@ -17,7 +17,10 @@ organelles = [
 # 6-color cells segmented by 6-color ilastik
 subfolders = ["EYrainbow_glucose_largerBF"]
 bycell_6segmented_by6 = read_results(Path("./data/"),subfolders,(px_x,px_y,px_z))
-bycell_6segmented_by6 = bycell_6segmented_by6.loc[bycell_6segmented_by6["condition"].eq(100)]
+bycell_6segmented_by6 = bycell_6segmented_by6.loc[
+	bycell_6segmented_by6["condition"].eq(100)
+#   & bycell_6segmented_by6["field"].eq(6)
+]
 bycell_6segmented_by6.rename(
 	columns={
 		"idx-cell"      : "cell-idx",
@@ -143,30 +146,58 @@ bycell_1segmented_by6.reset_index(inplace=True)
 
 
 # Plot
+legends = [
+	"6-color cells\n6-color ilastik",
+	"6-color cells\n at 8 hours",
+	"1-color cells\n1-color ilastik",
+]
 for organelle in organelles:
 	for property in ["mean-um3","total-um3","volume-fraction","count"]:
+		# bar plot
 		plt.figure()
-		for d,dataset in enumerate([bycell_6segmented_by6,bycell_6segmented_by1,bycell_1segmented_by1,bycell_1segmented_by6]):
+		for d,dataset in enumerate([
+			bycell_6segmented_by6,
+			bycell_8hours,
+			bycell_1segmented_by1
+		]):
 			plt.bar(
 			    [d], height=[dataset.loc[dataset["organelle"].eq(organelle),property].mean()], 
 			           yerr=[dataset.loc[dataset["organelle"].eq(organelle),property].std()],
 			)
 		plt.xticks(
-			ticks=np.arange(4),
-			labels=[
-				"6-color cells\n6-color ilastik",
-				"6-color cells\n1-color ilastik",
-				"1-color cells\n1-color ilastik",
-				"1-color cells\n6-color ilastik",
-			]
+			ticks=np.arange(3),
+			labels=legends
 		)
 		name = property.replace('um3','volume').replace("count","number").replace('-',' ').title()
 		y_label = r"Volume ($\mu$m$^3$)" if "-um" in property else name
 		plt.ylabel(y_label)
 		plt.title(f"{organelle}\n{name}")
 		plt.savefig(
-			f"plots/compare_diploids/sameIlastikParam_{organelle}_{name}.png",
+			f"plots/rebuttal_diploid_after_march/bar_{organelle}_{name}.png",
 			dpi=600
 		)
+		# distribution histogram
 		
+		plt.figure()
+		for d,dataset in enumerate([
+			bycell_6segmented_by6,
+			bycell_8hours,
+			bycell_1segmented_by1
+		]):
+			distrib = dataset.loc[dataset["organelle"].eq(organelle),property]
+			binned  = np.arange(-0.5,distrib.max()) if property=="count" else int(np.sqrt(len(distrib))) 
+			plt.hist(
+				distrib,
+				bins=binned, histtype="step", density=True,
+				label=legends[d]
+			)
+		plt.legend()
+		name = property.replace('um3','volume').replace("count","number").replace('-',' ').title()
+		x_label = r"Volume ($\mu$m$^3$)" if "-um" in property else name
+		plt.xlabel(x_label)
+		plt.title(f"{organelle}\n{name}")
+		plt.savefig(
+			f"plots/rebuttal_diploid_after_march/distribution_{organelle}_{name}.png",
+			dpi=600
+		)
 

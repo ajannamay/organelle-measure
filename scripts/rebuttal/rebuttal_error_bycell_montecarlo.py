@@ -1,5 +1,5 @@
 # Monte Carlo simulation of the organelle volumes in a cell.
-# The issue of rebuttal_error_bycell is that it scanns through unique probabilities in the images, thus the possible total volume have a very limited number of possible values
+# The issue of rebuttal_error_bycell is that it scans through unique probabilities in the images, thus the possible total volume have a very limited number of possible values
 # This script cope with this problem by generating a random array and compare it with the probability image given by `ilastik`.
 # By repeating this for a ot of times, we have a Monte-Carlo estimate of the distribution of the volume, which hopefully is rather continuous.
 

@@ -2,6 +2,7 @@
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from nd2reader import ND2Reader
 from skimage import io,util,segmentation,measure,filters
 from organelle_measure.yeaz import yeaz_preprocesses,yeaz_label
 from organelle_measure.tools import skeletonize_zbyz,neighbor_mean,find_complete_rings
@@ -12,13 +13,17 @@ nickname = "SameParamAs6"
 
 
 # (no need to do) Segment Cells 
-# (no need to do) Preprocess
+# Preprocess
+# TASK:   Check if the red unmixed images should go through again the pipeline.
+# METHOD: See the creation time of the unmixed image and the preprocessed image.
+# BUT:    It seems the old images give better results.
+
 
 # after Ilastik, Postprocess
 # peroxisome, golgi, lipid droplet
 for path in [
-	Path(f"images/preprocessed/{FOLDER1}/{nickname}_preprocessed_peroxisome_diploids1color.tiff"),
-	Path(f"images/preprocessed/{FOLDER1}/{nickname}_preprocessed_golgi_diploids1color.tiff"),
+	# Path(f"images/preprocessed/{FOLDER1}/{nickname}_preprocessed_peroxisome_diploids1color.tiff"),
+	# Path(f"images/preprocessed/{FOLDER1}/{nickname}_preprocessed_golgi_diploids1color.tiff"),
 	Path(f"images/preprocessed/{FOLDER1}/{nickname}_preprocessed_LD_diploids1color.tiff")
 ]:
 	img = io.imread(str(path))
@@ -27,7 +32,7 @@ for path in [
 	ref = io.imread(str(path_ref))
 	output = segmentation.watershed(-ref,mask=img)
 	io.imsave(
-		f"images/labelled/{FOLDER1}/{nickname}_{path_ref.name.partition('_')[2]}",
+		f"images/labelled/rebuttal_diploid_comparison/1color-cells_1color-10param-ilastik/{nickname}_{path_ref.name.partition('_')[2]}",
 		util.img_as_uint(output)
 	)
 
@@ -61,7 +66,7 @@ img = io.imread(str(path))
 img = (img>0.5)
 output = measure.label(img)
 io.imsave(
-	f"images/labelled/{FOLDER1}/{nickname}_mitochondria_diploids1color.tif",
+	f"images/labelled/rebuttal_diploid_comparison/1color-cells_1color-10param-ilastik/{nickname}_mitochondria_diploids1color.tif",
 	util.img_as_uint(output)
 )
 
@@ -115,12 +120,12 @@ for path in Path(f"images/preprocessed/{FOLDER6}").glob(f"{nickname}_ER*.tiff"):
 
 # Measure
 organelles = [
-	# "peroxisome",
+	"peroxisome",
 	# "vacuole",
-	# "ER",
+	"ER",
 	"golgi",
-	# "mitochondria",
-	# "LD"
+	"mitochondria",
+	"LD"
 ]
 
 # single-color

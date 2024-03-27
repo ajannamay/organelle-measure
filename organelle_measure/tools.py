@@ -162,7 +162,8 @@ def neighbor_mean(img_orga,img_cell):
     img_out = np.copy(img_orga)
     for prop in properties:
         min_row, min_col, max_row, max_col = prop.bbox
-        win_row,win_col = max_row - min_row, max_col - min_col
+        # win_row,win_col = max_row - min_row, max_col - min_col
+        win_row,win_col = 2*(max_row - min_row), 2*(max_col - min_col)
         min_row = max(min_row - win_row, 0)
         min_col = max(min_col - win_col, 0)
         max_row = min(max_row + win_row, img_cell.shape[0])

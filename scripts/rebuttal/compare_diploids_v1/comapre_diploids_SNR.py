@@ -44,6 +44,14 @@ meta = {
 # # Plot mean signal and SNR
 signal_noise = {o:{} for o in organelles}
 
+def average_intensities(img_intensity,img_probability):
+	img_mask = (img_probability>0.5)
+	img_edge = np.logical_and(img_probability>0.495, img_probability<0.505)
+	mean_signal = np.mean(img_intensity[img_mask])
+	mean_backgd = np.mean(img_intensity[np.logical_not(img_mask)])
+	mean_edge   = np.mean(img_intensity[img_edge])
+	return mean_signal,mean_backgd,mean_edge
+
 # ## 6-color original experimental data
 for organelle in organelles:
 	for path_cell in Path("images/cell/EYrainbow_glucose_largerBF").glob("*glu-100*.tif"):
@@ -70,12 +78,14 @@ for organelle in organelles:
 				nd2.bundle_axes = "zyx" 
 				img_raw = nd2[0]
 		with h5py.File(str(path_mask),'r') as h5:
-			img_mask = h5["exported_data"][1]
+			img_prob = h5["exported_data"][1]
 		# print(organelle,stem,img_raw.shape,img_mask.shape)
-		img_mask = (img_mask>0.5)
-		mean_signal = np.mean(img_raw[img_mask])
-		mean_backgd = np.mean(img_raw[np.logical_not(img_mask)])
-		signal_noise[organelle]["6color-3hour"] = {"signal":mean_signal,"noise":mean_backgd}
+		mean_signal,mean_backgd,mean_edge = average_intensities(img_raw, img_prob)
+		signal_noise[organelle]["6color-3hour"] = {
+													"signal": mean_signal,
+													"noise" : mean_backgd,
+													"edge"  : mean_edge
+												}
 
 # ## 6-color 8-hour data
 for organelle in organelles:
