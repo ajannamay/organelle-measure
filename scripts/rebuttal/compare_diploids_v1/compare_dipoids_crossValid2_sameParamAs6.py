@@ -32,20 +32,20 @@ bycell_6segmented_by6.rename(
 	inplace=True
 )
 
-# 6-color 8-hour data
-subfolders = ["paperRebuttal"]
-bycell_8hours = read_results(Path("./data/"),subfolders,(px_x,px_y,px_z))
-bycell_8hours = bycell_8hours.loc[bycell_8hours["condition"].eq(100)]
-bycell_8hours.rename(
-	columns={
-		"idx-cell"      : "cell-idx",
-		"cell-volume"   : "cell-volume-um3",
-		"mean"          : "mean-um3",
-		"total"         : "total-um3",
-		"total-fraction": "volume-fraction"
-	},
-	inplace=True
-)
+# # 6-color 8-hour data
+# subfolders = ["paperRebuttal"]
+# bycell_8hours = read_results(Path("./data/"),subfolders,(px_x,px_y,px_z))
+# bycell_8hours = bycell_8hours.loc[bycell_8hours["condition"].eq(100)]
+# bycell_8hours.rename(
+# 	columns={
+# 		"idx-cell"      : "cell-idx",
+# 		"cell-volume"   : "cell-volume-um3",
+# 		"mean"          : "mean-um3",
+# 		"total"         : "total-um3",
+# 		"total-fraction": "volume-fraction"
+# 	},
+# 	inplace=True
+# )
 
 # 1-color cells segmented by 1-color ilastik
 dfs_read = []
@@ -78,78 +78,77 @@ bycell_1segmented_by1["volume-fraction"] = bycell_1segmented_by1["total-um3"] / 
 bycell_1segmented_by1.reset_index(inplace=True)
 
 
-# 6-color cells segmented by 1-color ilastik
-dfs_read = []
-for path in Path("data/rebuttal_diploid_comparison/6color-cells_1color-10param-ilastik").glob(f"*.csv"):
-	df = pd.read_csv(str(path))
-	if len(df) > 0:
-		dfs_read.append(df)
-df_6segmented_by1 = pd.concat(dfs_read,ignore_index=True)
-df_6segmented_by1["cell-idx"] = df_6segmented_by1["field"].astype(str) + "-" + df_6segmented_by1["cell-idx"].astype(str)
-df_6segmented_by1["volume-um3"] = (px_x*px_y*px_z)*df_6segmented_by1["area"]
-df_6segmented_by1.loc[df_6segmented_by1["organelle"].eq("vacuole"),"volume-um3"] = (
-	(px_x * px_y * df_6segmented_by1.loc[df_6segmented_by1["organelle"].eq("vacuole"),"area"])
-	*2
-	*np.sqrt(
-		px_x *  px_y * df_6segmented_by1.loc[df_6segmented_by1["organelle"].eq("vacuole"),"area"]
-		/np.pi
-	)
-)
-df_6segmented_by1["cell-volume-um3"] = (
-	(px_x * px_y * df_6segmented_by1["cell-area"])
-	*2
-	*np.sqrt(
-		px_x * px_y * df_6segmented_by1["cell-area"]
-	    /np.pi
-	)
-)
+# # 6-color cells segmented by 1-color ilastik
+# dfs_read = []
+# for path in Path("data/rebuttal_diploid_comparison/6color-cells_1color-10param-ilastik").glob(f"*.csv"):
+# 	df = pd.read_csv(str(path))
+# 	if len(df) > 0:
+# 		dfs_read.append(df)
+# df_6segmented_by1 = pd.concat(dfs_read,ignore_index=True)
+# df_6segmented_by1["cell-idx"] = df_6segmented_by1["field"].astype(str) + "-" + df_6segmented_by1["cell-idx"].astype(str)
+# df_6segmented_by1["volume-um3"] = (px_x*px_y*px_z)*df_6segmented_by1["area"]
+# df_6segmented_by1.loc[df_6segmented_by1["organelle"].eq("vacuole"),"volume-um3"] = (
+# 	(px_x * px_y * df_6segmented_by1.loc[df_6segmented_by1["organelle"].eq("vacuole"),"area"])
+# 	*2
+# 	*np.sqrt(
+# 		px_x *  px_y * df_6segmented_by1.loc[df_6segmented_by1["organelle"].eq("vacuole"),"area"]
+# 		/np.pi
+# 	)
+# )
+# df_6segmented_by1["cell-volume-um3"] = (
+# 	(px_x * px_y * df_6segmented_by1["cell-area"])
+# 	*2
+# 	*np.sqrt(
+# 		px_x * px_y * df_6segmented_by1["cell-area"]
+# 	    /np.pi
+# 	)
+# )
 
-bycell_6segmented_by1 = df_6segmented_by1[["organelle","cell-idx","cell-volume-um3"]].groupby(["organelle","cell-idx"]).mean()
-bycell_6segmented_by1["mean-um3"]  = df_6segmented_by1[["organelle","cell-idx","volume-um3"]].groupby(["organelle","cell-idx"]).mean()
-bycell_6segmented_by1["total-um3"] = df_6segmented_by1[["organelle","cell-idx","volume-um3"]].groupby(["organelle","cell-idx"]).sum()
-bycell_6segmented_by1["count"]     = df_6segmented_by1[["organelle","cell-idx","volume-um3"]].groupby(["organelle","cell-idx"]).count()
-bycell_6segmented_by1["volume-fraction"] = bycell_6segmented_by1["total-um3"] / bycell_6segmented_by1["cell-volume-um3"]
-bycell_6segmented_by1.reset_index(inplace=True)
+# bycell_6segmented_by1 = df_6segmented_by1[["organelle","cell-idx","cell-volume-um3"]].groupby(["organelle","cell-idx"]).mean()
+# bycell_6segmented_by1["mean-um3"]  = df_6segmented_by1[["organelle","cell-idx","volume-um3"]].groupby(["organelle","cell-idx"]).mean()
+# bycell_6segmented_by1["total-um3"] = df_6segmented_by1[["organelle","cell-idx","volume-um3"]].groupby(["organelle","cell-idx"]).sum()
+# bycell_6segmented_by1["count"]     = df_6segmented_by1[["organelle","cell-idx","volume-um3"]].groupby(["organelle","cell-idx"]).count()
+# bycell_6segmented_by1["volume-fraction"] = bycell_6segmented_by1["total-um3"] / bycell_6segmented_by1["cell-volume-um3"]
+# bycell_6segmented_by1.reset_index(inplace=True)
 
 
-# 1-color cells segmented by 6-color ilastik
-dfs_read = []
-for path in Path("data/rebuttal_diploid_comparison/1color-cells_6color-10param-ilastik").glob("*.csv"):
-	df = pd.read_csv(str(path))
-	if len(df) > 0:
-		dfs_read.append(df)
-df_1segmented_by6 = pd.concat(dfs_read,ignore_index=True)
-df_1segmented_by6["volume-um3"] = (px_x*px_y*px_z)*df_1segmented_by6["area"]
-df_1segmented_by6.loc[df_1segmented_by6["organelle"].eq("vacuole"),"volume-um3"] = (
-	(px_x * px_y * df_1segmented_by6.loc[df_1segmented_by6["organelle"].eq("vacuole"),"area"])
-	*2
-	*np.sqrt(
-		px_x * px_y * df_1segmented_by6.loc[df_1segmented_by6["organelle"].eq("vacuole"),"area"]
-		/np.pi
-	)
-)
-df_1segmented_by6["cell-volume-um3"] = (
-	(px_x * px_y * df_1segmented_by6["cell-area"])
-	*2
-	*np.sqrt(
-		px_x * px_y * df_1segmented_by6["cell-area"]
-	    /np.pi
-	)
-)
+# # 1-color cells segmented by 6-color ilastik
+# dfs_read = []
+# for path in Path("data/rebuttal_diploid_comparison/1color-cells_6color-10param-ilastik").glob("*.csv"):
+# 	df = pd.read_csv(str(path))
+# 	if len(df) > 0:
+# 		dfs_read.append(df)
+# df_1segmented_by6 = pd.concat(dfs_read,ignore_index=True)
+# df_1segmented_by6["volume-um3"] = (px_x*px_y*px_z)*df_1segmented_by6["area"]
+# df_1segmented_by6.loc[df_1segmented_by6["organelle"].eq("vacuole"),"volume-um3"] = (
+# 	(px_x * px_y * df_1segmented_by6.loc[df_1segmented_by6["organelle"].eq("vacuole"),"area"])
+# 	*2
+# 	*np.sqrt(
+# 		px_x * px_y * df_1segmented_by6.loc[df_1segmented_by6["organelle"].eq("vacuole"),"area"]
+# 		/np.pi
+# 	)
+# )
+# df_1segmented_by6["cell-volume-um3"] = (
+# 	(px_x * px_y * df_1segmented_by6["cell-area"])
+# 	*2
+# 	*np.sqrt(
+# 		px_x * px_y * df_1segmented_by6["cell-area"]
+# 	    /np.pi
+# 	)
+# )
 
-bycell_1segmented_by6 = df_1segmented_by6[["organelle","cell-idx","cell-volume-um3"]].groupby(["organelle","cell-idx"]).mean()
-bycell_1segmented_by6["mean-um3"]  = df_1segmented_by6[["organelle","cell-idx","volume-um3"]].groupby(["organelle","cell-idx"]).mean()
-bycell_1segmented_by6["total-um3"] = df_1segmented_by6[["organelle","cell-idx","volume-um3"]].groupby(["organelle","cell-idx"]).sum()
-bycell_1segmented_by6["count"]     = df_1segmented_by6[["organelle","cell-idx","volume-um3"]].groupby(["organelle","cell-idx"]).count()
-bycell_1segmented_by6["volume-fraction"] = bycell_1segmented_by6["total-um3"] / bycell_1segmented_by6["cell-volume-um3"]
-bycell_1segmented_by6.reset_index(inplace=True)
+# bycell_1segmented_by6 = df_1segmented_by6[["organelle","cell-idx","cell-volume-um3"]].groupby(["organelle","cell-idx"]).mean()
+# bycell_1segmented_by6["mean-um3"]  = df_1segmented_by6[["organelle","cell-idx","volume-um3"]].groupby(["organelle","cell-idx"]).mean()
+# bycell_1segmented_by6["total-um3"] = df_1segmented_by6[["organelle","cell-idx","volume-um3"]].groupby(["organelle","cell-idx"]).sum()
+# bycell_1segmented_by6["count"]     = df_1segmented_by6[["organelle","cell-idx","volume-um3"]].groupby(["organelle","cell-idx"]).count()
+# bycell_1segmented_by6["volume-fraction"] = bycell_1segmented_by6["total-um3"] / bycell_1segmented_by6["cell-volume-um3"]
+# bycell_1segmented_by6.reset_index(inplace=True)
 
 
 # Plot
 legends = [
-	"6-color cells\n6-color ilastik",
-	"6-color cells\n at 8 hours",
-	"1-color cells\n1-color ilastik",
+	"6-color diploids",
+	"1-color diploids",
 ]
 for organelle in organelles:
 	for property in ["mean-um3","total-um3","volume-fraction","count"]:
@@ -157,7 +156,7 @@ for organelle in organelles:
 		plt.figure()
 		for d,dataset in enumerate([
 			bycell_6segmented_by6,
-			bycell_8hours,
+			# bycell_8hours,
 			bycell_1segmented_by1
 		]):
 			plt.bar(
@@ -165,15 +164,15 @@ for organelle in organelles:
 			           yerr=[dataset.loc[dataset["organelle"].eq(organelle),property].std()],
 			)
 		plt.xticks(
-			ticks=np.arange(3),
+			ticks=np.arange(2),
 			labels=legends
 		)
-		name = property.replace('um3','volume').replace("count","number").replace('-',' ').title()
+		name = property.replace('um3','volume').replace("count","number").replace('-',' ')
 		y_label = r"Volume ($\mu$m$^3$)" if "-um" in property else name
 		plt.ylabel(y_label)
-		plt.title(f"{organelle}\n{name}")
+		plt.title(organelle)
 		plt.savefig(
-			f"plots/rebuttal_diploid_after_march/bar_{organelle}_{name}.png",
+			f"plots/rebuttal_diploid_comparison/bar_{organelle}_{name}.png",
 			dpi=600
 		)
 		# distribution histogram
@@ -181,7 +180,7 @@ for organelle in organelles:
 		plt.figure()
 		for d,dataset in enumerate([
 			bycell_6segmented_by6,
-			bycell_8hours,
+			# bycell_8hours,
 			bycell_1segmented_by1
 		]):
 			distrib = dataset.loc[dataset["organelle"].eq(organelle),property]
@@ -195,9 +194,9 @@ for organelle in organelles:
 		name = property.replace('um3','volume').replace("count","number").replace('-',' ').title()
 		x_label = r"Volume ($\mu$m$^3$)" if "-um" in property else name
 		plt.xlabel(x_label)
-		plt.title(f"{organelle}\n{name}")
+		plt.title(organelle)
 		plt.savefig(
-			f"plots/rebuttal_diploid_after_march/distribution_{organelle}_{name}.png",
+			f"plots/rebuttal_diploid_comparison/distribution_{organelle}_{name}.png",
 			dpi=600
 		)
 

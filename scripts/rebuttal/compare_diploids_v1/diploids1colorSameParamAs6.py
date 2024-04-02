@@ -120,12 +120,12 @@ for path in Path(f"images/preprocessed/{FOLDER6}").glob(f"{nickname}_ER*.tiff"):
 
 # Measure
 organelles = [
-	"peroxisome",
+	# "peroxisome",
 	# "vacuole",
-	"ER",
-	"golgi",
+	# "ER",
+	# "golgi",
 	"mitochondria",
-	"LD"
+	# "LD"
 ]
 
 # single-color
