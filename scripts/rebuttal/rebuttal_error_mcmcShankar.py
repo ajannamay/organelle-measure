@@ -4,6 +4,7 @@
 # %%
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from pathlib import Path
 from skimage import io,util,morphology
 import h5py
@@ -19,7 +20,7 @@ organelles = [
 ] 
 
 # %%
-path = "/images/preprocessed/EYrainbow_glucose_largerBF/probability_mitochondria_EYrainbow_glu-100_field-3.h5"
+path = "images/preprocessed/EYrainbow_glucose_largerBF/probability_peroxisome_EYrainbow_glu-100_field-3.h5"
 
 with h5py.File(str(path)) as h5:
 	image = h5["exported_data"][1]
@@ -44,28 +45,30 @@ def upsample(mask,prob):
 def downsample(mask,prob):
 	eroded = morphology.binary_erosion(mask)
 	edge = np.logical_xor(mask,eroded)
-	to_compare = 1 - prob[edge]
+	to_compare = prob[edge] # not (1 - prob[edge]), because last line means a flip
 	randoms  = np.random.random(to_compare.shape)
 	compared = (to_compare > randoms)
 	mask[edge] = compared
 	return None
 
 # %%
-mask_selected = (image>0.5)
-N_sample = 10000
+img = image
+# %%
+for z in range(image.shape[0]):
+	img = image[z]
+	mask_selected = (img>0.5)
+	N_sample = 1000
 
-mask_up = np.copy(mask_selected)
-sizes_up = np.empty(N_sample)
-for i in range(N_sample):
-	upsample(mask_up,image)
-	sizes_up[i] = np.count_nonzero(mask_up)
-	continue
-
-mask_dw = np.copy(mask_selected)
-sizes_dw = np.empty(N_sample)
-for i in range(N_sample):
-	continue
-	
-
+	sizes = np.empty(N_sample)
+	mask_dynamic = np.copy(mask_selected)
+	sizes[0] = np.count_nonzero(mask_selected)
+	for i in range(N_sample-1):
+		upsample(  mask_dynamic,img)
+		downsample(mask_dynamic,img)
+		sizes[i+1] = np.count_nonzero(mask_dynamic)
+	plt.figure()
+	plt.scatter(np.arange(len(sizes)),sizes)
+	plt.title(f"{z=}")
+	plt.show()
 
 # %%
