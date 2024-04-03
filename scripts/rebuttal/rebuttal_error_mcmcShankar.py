@@ -54,8 +54,8 @@ def downsample(mask,prob):
 # %%
 img = image
 # %%
-for z in range(image.shape[0]):
-	img = image[z]
+# for z in range(image.shape[0]):
+# 	img = image[z]
 	mask_selected = (img>0.5)
 	N_sample = 1000
 
@@ -63,12 +63,18 @@ for z in range(image.shape[0]):
 	mask_dynamic = np.copy(mask_selected)
 	sizes[0] = np.count_nonzero(mask_selected)
 	for i in range(N_sample-1):
-		upsample(  mask_dynamic,img)
-		downsample(mask_dynamic,img)
+		seed = np.random.random()
+		if seed < 0.5:
+			downsample(mask_dynamic,img)
+			upsample(  mask_dynamic,img)
+		else:
+			upsample(  mask_dynamic,img)
+			downsample(mask_dynamic,img)
 		sizes[i+1] = np.count_nonzero(mask_dynamic)
 	plt.figure()
 	plt.scatter(np.arange(len(sizes)),sizes)
-	plt.title(f"{z=}")
+	plt.plot([0,N_sample],[sizes[0],sizes[0]],'r')
+	# plt.title(f"{z=}")
 	plt.show()
 
 # %%
