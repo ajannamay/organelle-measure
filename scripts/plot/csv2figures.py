@@ -71,7 +71,7 @@ extremes = {
 
 
 # READ FILES
-df_bycell = read_results(Path("./data/results"),subfolders,(px_x,px_y,px_z))
+df_bycell = read_results(Path("./data"),subfolders,(px_x,px_y,px_z))
 
 
 # DATAFRAME FOR CORRELATION COEFFICIENT
@@ -606,7 +606,7 @@ for folder in subfolders:
         )
 
 # PCA 
-def make_pca_plots(experiment,property,groups=None,has_volume=False,is_normalized=False,non_organelle=False,saveto="./data/"):
+def make_pca_plots(experiment,property,groups=None,has_volume=False,is_normalized=False,non_organelle=False,saveto="./plots/"):
     for pca_subfolder in [ "pca_data/",
                            "pca_compare/",
                            "pca_projection_extremes/",
@@ -656,7 +656,7 @@ def make_pca_plots(experiment,property,groups=None,has_volume=False,is_normalize
 
     vec_centroid = vec_centroid_ended - vec_centroid_start
     vec_centroid = vec_centroid/np.linalg.norm(vec_centroid)
-    np.savetxt(str(Path(saveto)/"pca_data/condition-vector_{folder}_{name}.txt"),vec_centroid)
+    np.savetxt(str(Path(saveto)/f"pca_data/condition-vector_{folder}_{name}.txt"),vec_centroid)
 
     # Get Principal Components (PCs)
     np_pca = df_pca[columns].to_numpy()
@@ -866,16 +866,17 @@ def make_pca_plots(experiment,property,groups=None,has_volume=False,is_normalize
     return None
 
 for experiment in exp_names:
-    make_pca_plots(experiment,"total-fraction",groups=extremes[experiments[experiment]],has_volume=False,is_normalized=True,non_organelle=False,saveto="data/REBUTTAL_PLOTS")
+    make_pca_plots(experiment,"total-fraction",groups=extremes[experiments[experiment]],has_volume=False,is_normalized=True,non_organelle=False,saveto="plots/PCA_review_20240403")
 
+saveto="plots/PCA_review_20240403"
 
 dict_pc        = {}
 dict_cosine    = {}
 dict_var_ratio = {}
 for expm in exp_names: 
-    file_pc = f"data/pca_data/pca-components_{experiments[expm]}_extremes_no-cytoplasm_organelle-only_total-fraction_norm-mean-std.txt"
-    file_cosine = f"data/pca_data/cosine_{experiments[expm]}_extremes_no-cytoplasm_organelle-only_total-fraction_norm-mean-std.txt"
-    file_var_ratio = f"data/pca_data/pca-explained-ratio_{experiments[expm]}_extremes_no-cytoplasm_organelle-only_total-fraction_norm-mean-std.txt"
+    file_pc = f"{saveto}/pca_data/pca-components_{experiments[expm]}_extremes_no-cytoplasm_organelle-only_total-fraction_norm-mean-std.txt"
+    file_cosine = f"{saveto}/pca_data/cosine_{experiments[expm]}_extremes_no-cytoplasm_organelle-only_total-fraction_norm-mean-std.txt"
+    file_var_ratio = f"{saveto}/pca_data/pca-explained-ratio_{experiments[expm]}_extremes_no-cytoplasm_organelle-only_total-fraction_norm-mean-std.txt"
     dict_pc[expm] = np.loadtxt(file_pc)
     dict_cosine[expm] = np.loadtxt(file_cosine)
     dict_var_ratio[expm] = np.loadtxt(file_var_ratio)
@@ -902,7 +903,7 @@ fig_glu2others = px.imshow(
 )
 fig_glu2others.update_traces(text=glu2ranking,texttemplate="%{text}")
 fig_glu2others.update_xaxes(side="top")
-fig_glu2others.write_html(f'{Path("./data/pca_compare")}/compare2glucose.html')
+fig_glu2others.write_html(f'{saveto}/pca_compare/compare2glucose.html')
 
 
 # summary of experiments
@@ -914,14 +915,14 @@ for i0,expm0 in enumerate(exp_names):
         for s0 in range(6):
             for s1 in range(s0,6):
                 sq_products[s0,s1] = np.dot(dict_pc[expm0][s0],dict_pc[expm1][s1])/6
-        sq_summary[i0,i0+i1] = np.sum(sq_products)
-        # sq_summary[i0,i0+i1] = np.dot(dict_cosine[expm0],dict_cosine[expm1])
+        # sq_summary[i0,i0+i1] = np.sum(sq_products)
+        sq_summary[i0,i0+i1] = np.dot(dict_cosine[expm0],dict_cosine[expm1])
 fig_summary = px.imshow(
     sq_summary.T,
     x=exp_names,y=exp_names,
     color_continuous_scale="RdBu_r",color_continuous_midpoint=0
 )
-fig_summary.write_html(f'{Path("./data/pca_compare")}/summary_asymmetric.html')
+fig_summary.write_html(f'{saveto}/pca_compare/summary_cosine.html')
 
 
 # power law
