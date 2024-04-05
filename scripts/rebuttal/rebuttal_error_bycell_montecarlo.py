@@ -45,7 +45,7 @@ for organelle in organelles:
         min_row, min_col, max_row, max_col = cell.bbox
         img_cell_crop = cell.image
         img_orga_crop = img_orga[:,min_row:max_row,min_col:max_col] # type:ignore
-        for z in range(img_cell_crop.shape[0]):
+        for z in range(img_orga_crop.shape[0]):
             img_orga_crop[z] = img_orga_crop[z] * img_cell_crop # type:ignore
         sampled_sizes = np.zeros(N_SAMPLE)
         for i in range(N_SAMPLE):
