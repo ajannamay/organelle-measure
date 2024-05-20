@@ -1,7 +1,10 @@
 # specific to this project
+data/
+test/
 images/
-**/pairwise_rebuttal.png
+
 *.nd2
+**/pairwise_rebuttal.png
 # unet weight file
 organelle_measure/unet/weights*
 
@@ -10,4 +13,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.egg-info/
+
 .pytest_cache
+
+# unet weight file
+organelle_measure/unet/weights*
