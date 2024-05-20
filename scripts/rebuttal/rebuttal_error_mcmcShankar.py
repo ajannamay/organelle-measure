@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
-from skimage import io,morphology,measure
+from skimage import io,morphology,measure,filters
 import h5py
 
 organelles = [
@@ -24,11 +24,15 @@ organelles = [
 # both functions do not have return values, i.e.:
 # their executions are not expected to be assigned to some variables
 # instead, the first input will be altered by the functions.
+def random_sample(args):
+    # return np.random.random(args)
+    return 0.1 + 0.8*np.random.random(args)
+
 def upsample(mask,prob):
     dilated = morphology.binary_dilation(mask)
     edge = np.logical_xor(mask,dilated)
     to_compare = prob[edge]
-    randoms  = np.random.random(to_compare.shape)
+    randoms  = random_sample(to_compare.shape)
     compared = (to_compare > randoms)
     mask[edge] = compared
     return None
@@ -37,7 +41,7 @@ def downsample(mask,prob):
     eroded = morphology.binary_erosion(mask)
     edge = np.logical_xor(mask,eroded)
     to_compare = prob[edge] # not (1 - prob[edge]), because last line means a flip
-    randoms  = np.random.random(to_compare.shape)
+    randoms  = random_sample(to_compare.shape)
     compared = (to_compare > randoms)
     mask[edge] = compared
     return None
@@ -97,8 +101,87 @@ for organelle in organelles:
 
     
 df = pd.concat(dfs,ignore_index=True)
-df.to_csv("plots/rebuttal_error/mcmcShankar.csv",index=False)
+df.to_csv("plots/rebuttal_error/mcmcShankar_10-90.csv",index=False)
 
-        
+# %%
+df = pd.read_csv("plots/rebuttal_error/mcmcShankar_25-75.csv")
+# %%
+df["std/mean"]  = df["standard_deviation"]/df["average"]
+df["diff"]      = df["segmented"] - df["average"]
+df["diff/mean"] = df["diff"]/df["average"]
+df = df[df['diff/mean'].lt(200)]
+df.dropna(inplace=True)
+
+# %%
+by_organlle = df[["organelle","std/mean","diff/mean"]].groupby("organelle").mean()
+plt.figure()
+plt.errorbar(
+    np.arange(6),np.zeros(6),fmt='None',
+    yerr=by_organlle.loc[organelles,'std/mean'],
+    capsize=5,ecolor='k'
+)
+plt.scatter(
+    np.arange(6),by_organlle.loc[organelles,"diff/mean"],
+    c='k'
+)
+plt.xticks(
+    ticks=np.arange(6),
+    labels=organelles
+)
+plt.xlabel("Organelle")
+plt.ylabel("Segmentation Error")
+# plt.show()
+plt.savefig("plots/rebuttal_error/mcmcShankar_25-75_summary.png",dpi=300)
+# %%
+for organelle in organelles:
+    df_organelle = df[df["organelle"].eq(organelle)]
+    plt.figure()
+    plt.errorbar(
+        np.arange(len(df_organelle)),
+        np.zeros(len(df_organelle)),
+        yerr=df_organelle["standard_deviation"]/df_organelle["average"],
+        capsize=5
+    )
+    plt.scatter(
+        np.arange(len(df_organelle)),
+        df_organelle["diff"]/df_organelle["average"]
+    )
+    plt.title(organelle)
+    plt.ylim(-0.5,0.5)
+    plt.show()
+
+    print(
+        organelle,
+        len(df_organelle),
+        np.count_nonzero(
+            np.absolute(df_organelle["diff"]) > df_organelle["standard_deviation"]
+        )
+    )
+
+
+# %% [markdown]
+# THE FOLLOWING CELLS CREATES DEMO OF THE ABOVE SIMULATIONS
+
+# %%
+img_prob = np.zeros((60,60),dtype=bool)
+img_prob[ 7:22, 7:22] = morphology.disk(radius=7, dtype=bool)
+img_prob[30:51,30:51] = morphology.disk(radius=10,dtype=bool)
+img_prob = filters.gaussian(img_prob,sigma=3)
+img_prob = (img_prob - img_prob.min())/(img_prob.max() - img_prob.min())
+# %%
+img_mask = (img_prob>0.5)
+
+img_external = morphology.binary_dilation(img_mask)
+img_external = np.logical_xor(img_mask,img_external)
+
+img_internal = morphology.binary_erosion(img_mask)
+img_internal = np.logical_xor(img_mask,img_internal)
+
+# %%
+new_down = np.copy(img_mask)
+downsample(new_down,img_prob)
+
+new_up = np.copy(img_mask)
+upsample(new_up,img_prob)
 
 # %%
