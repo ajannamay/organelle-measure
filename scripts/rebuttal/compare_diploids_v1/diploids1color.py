@@ -21,7 +21,7 @@ for parent in [
 
 # Segment Cells
 # for path_cell in Path(f"images/raw/{FOLDER}").glob("*camera*.nd2"):
-for path_cell in Path(f"images/raw/{FOLDER}").glob("gl_camera*.nd2"):
+for path_cell in Path(f"images/raw/{FOLDER}").glob("vo_camera*.nd2"):
 	with ND2Reader(str(path_cell)) as nd2:
 		nd2.bundle_axes = "yx"
 		nd2.iter_axes = 't'
@@ -59,17 +59,17 @@ io.imsave(
 	util.img_as_uint(gauss)
 )
 
-# # vacuole, did NOT see signal
-# path = Path(f"images/raw/{FOLDER}/vo_spectra-blue_diploid1color_field-1.nd2")
-# with ND2Reader(str(path)) as nd2:
-# 	nd2.bundle_axes = "zyx"
-# 	nd2.iter_axes   = "c"
-# 	image = nd2[1]
-# gauss = filters.gaussian(image,sigma=0.75,preserve_range=True).astype(int)
-# io.imsave(
-# 	f"images/preprocessed/{FOLDER}/preprocessed_vacuole_diploids1color.tif",
-# 	util.img_as_uint(gauss)
-# )
+# # vacuole
+path = Path(f"images/raw/{FOLDER}/vo_spectra-blue_diploid1color_field-1.nd2")
+with ND2Reader(str(path)) as nd2:
+	nd2.bundle_axes = "zyx"
+	nd2.iter_axes   = "c"
+	image = nd2[1]
+gauss = filters.gaussian(image,sigma=0.75,preserve_range=True).astype(int)
+io.imsave(
+	f"images/preprocessed/{FOLDER}/preprocessed_vacuole_diploids1color.tif",
+	util.img_as_uint(gauss)
+)
 
 # ER
 path = Path(f"images/raw/{FOLDER}/er_spectra-green_diploid1color_field-1.nd2")
