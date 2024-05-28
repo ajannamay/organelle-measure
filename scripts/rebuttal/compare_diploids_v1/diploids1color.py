@@ -60,16 +60,16 @@ io.imsave(
 )
 
 # # vacuole
-path = Path(f"images/raw/{FOLDER}/vo_spectra-blue_diploid1color_field-1.nd2")
-with ND2Reader(str(path)) as nd2:
-	nd2.bundle_axes = "zyx"
-	nd2.iter_axes   = "c"
-	image = nd2[1]
-gauss = filters.gaussian(image,sigma=0.75,preserve_range=True).astype(int)
-io.imsave(
-	f"images/preprocessed/{FOLDER}/preprocessed_vacuole_diploids1color.tif",
-	util.img_as_uint(gauss)
-)
+for p,path in enumerate(Path(f"images/raw/{FOLDER}/").glob("vo_unmixed-*.nd2")):
+	with ND2Reader(str(path)) as nd2:
+		nd2.bundle_axes = "zyx"
+		nd2.iter_axes   = "c"
+		image = nd2[1]
+	gauss = filters.gaussian(image,sigma=0.75,preserve_range=True).astype(int)
+	io.imsave(
+		f"images/preprocessed/{FOLDER}/preprocessed_vacuole_diploids1color_field-{p}.tif",
+		util.img_as_uint(gauss)
+	)
 
 # ER
 path = Path(f"images/raw/{FOLDER}/er_spectra-green_diploid1color_field-1.nd2")
@@ -182,25 +182,27 @@ io.imsave(
 	f"images/labelled/{FOLDER}/ER_diploids1color.tif",
 	util.img_as_uint(ske)
 )
-# # vacuole
-# path = Path(f"images/preprocessed/{FOLDER}/Probabilities_preprocessed_vacuole_diploids1color.tiff")
-# img = io.imread(str(path))
-# img = (img>0.5)
-# path_cell = Path(f"images/cell/{FOLDER}/camera-BF-after_EY2795triColor-EY2796WT_check-2.tif")
-# cell = io.imread(path_cell)
-# ske = skeletonize_zbyz(img)
-# core = find_complete_rings(ske)
-# output = np.zeros_like(core,dtype=int)
-# for z in range(output.shape[0]):
-# 	sample = core[z]
-# 	candidates = np.unique(sample[cell>0])
-# 	for color in candidates:
-# 		if len(np.unique(cell[sample==color]))==1:
-# 			output[z,sample==color] = color
-# io.imsave(
-# 	f"images/labelled/{FOLDER}/vacuole_diploids1color.tif",
-# 	util.img_as_uint(output)
-# )
+
+# vacuole
+for path in Path(f"images/preprocessed/{FOLDER}/").glob("SameParamAs6_preprocessed_vacuole_diploids1color_field-*.tiff"):
+	p = path.stem.partition("field-")[2]
+	img = io.imread(str(path))
+	img = (img>0.5)
+	path_cell = Path(f"images/cell/{FOLDER}/vo_camera-after_diploid1color_field-{p}.tif")
+	cell = io.imread(path_cell)
+	ske = skeletonize_zbyz(img)
+	core = find_complete_rings(ske)
+	output = np.zeros_like(core,dtype=int)
+	for z in range(output.shape[0]):
+		sample = core[z]
+		candidates = np.unique(sample[cell>0])
+		for color in candidates:
+			if len(np.unique(cell[sample==color]))==1:
+				output[z,sample==color] = color
+	io.imsave(
+		f"images/labelled/rebuttal_diploid_comparison/1color-cells_1color-10param-ilastik/vacuole_diploids1color_field-{p}.tif",
+		util.img_as_uint(output)
+	)
 
 # Measure
 organelles = [
