@@ -6,12 +6,12 @@ from organelle_measure.data import read_results
 
 px_x,px_y,px_z = 0.41,0.41,0.20
 organelles = [
-    "peroxisome",
-    # "vacuole",
-    "ER",
-    "golgi",
-    "mitochondria",
-    "LD"
+    # "peroxisome",
+    "vacuole",
+    # "ER",
+    # "golgi",
+    # "mitochondria",
+    # "LD"
 ]
 
 # 6-color cells segmented by 6-color ilastik
@@ -49,7 +49,7 @@ bycell_6segmented_by6.rename(
 
 # 1-color cells segmented by 1-color ilastik
 dfs_read = []
-for	path in Path("data/rebuttal_diploid_comparison/1color-cells_1color-10param-ilastik").glob(f"*.csv"):
+for	path in Path("data/rebuttal_diploid_comparison/1color-cells_1color-10param-ilastik").glob(f"SameParamAs6_vacuole*.csv"):
 	dfs_read.append(pd.read_csv(str(path)))
 df_1segmented_by1 = pd.concat(dfs_read,ignore_index=True)
 df_1segmented_by1["volume-um3"] = (px_x*px_y*px_z)*df_1segmented_by1["area"]
@@ -70,10 +70,10 @@ df_1segmented_by1["cell-volume-um3"] = (
 	)
 )
 
-bycell_1segmented_by1 = df_1segmented_by1[["organelle","cell-idx","cell-volume-um3"]].groupby(["organelle","cell-idx"]).mean()
-bycell_1segmented_by1["mean-um3"]  = df_1segmented_by1[["organelle","cell-idx","volume-um3"]].groupby(["organelle","cell-idx"]).mean()
-bycell_1segmented_by1["total-um3"] = df_1segmented_by1[["organelle","cell-idx","volume-um3"]].groupby(["organelle","cell-idx"]).sum()
-bycell_1segmented_by1["count"]     = df_1segmented_by1[["organelle","cell-idx","volume-um3"]].groupby(["organelle","cell-idx"]).count()
+bycell_1segmented_by1 = df_1segmented_by1[["organelle","field","cell-idx","cell-volume-um3"]].groupby(["organelle","field","cell-idx"]).mean()
+bycell_1segmented_by1["mean-um3"]  = df_1segmented_by1[["organelle","field","cell-idx","volume-um3"]].groupby(["organelle","field","cell-idx"]).mean()
+bycell_1segmented_by1["total-um3"] = df_1segmented_by1[["organelle","field","cell-idx","volume-um3"]].groupby(["organelle","field","cell-idx"]).sum()
+bycell_1segmented_by1["count"]     = df_1segmented_by1[["organelle","field","cell-idx","volume-um3"]].groupby(["organelle","field","cell-idx"]).count()
 bycell_1segmented_by1["volume-fraction"] = bycell_1segmented_by1["total-um3"] / bycell_1segmented_by1["cell-volume-um3"]
 bycell_1segmented_by1.reset_index(inplace=True)
 
