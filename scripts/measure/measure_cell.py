@@ -86,3 +86,24 @@ args = pd.DataFrame({
     "path_out":  list_o
 })
 batch_apply(measure1cell,args)
+
+# %%
+csv = pd.read_csv("./binCell-after_EYrainbow_glu-0-5_field-0.csv")
+# %%
+import numpy as np
+import matplotlib.pyplot as plt
+
+px_x,px_y,px_z = 0.41,0.41,0.20
+csv["effective-volume"] = (px_x*px_y)*np.sqrt(px_x*px_y)*(2.)*csv.loc[:,"area"]*np.sqrt(csv.loc[:,"area"])/np.sqrt(np.pi)
+
+plt.figure()
+plt.hist(csv["area"],bins=20)
+plt.xlabel("size/pixels")
+plt.savefig("binCell-after_EYrainbow_glu-0-5_field-0_histogram-pixel.png")
+
+plt.figure()
+plt.hist(csv["effective-volume"],bins=20)
+plt.xlabel("size/microns")
+plt.savefig("binCell-after_EYrainbow_glu-0-5_field-0_histogram-microns.png")
+
+# %%
