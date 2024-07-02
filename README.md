@@ -18,7 +18,7 @@
         - plotly (optional)
 2. Download the project
     ```bash
-    git clone git@github.com:ShixingWang/organelle-measure.git
+    git clone git@github.com:smukherjilab/organelle-measure.git
     cd organelle-measure
     ```
 3. Install the package required by the scripts
