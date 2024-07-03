@@ -22,12 +22,8 @@
     cd organelle-measure
     ```
 3. Install the package required by the scripts
-    - YeaZ requires `tensorflow=1.15`, which requires `python=3.6`, so I installed it in a separate environment:
-        ```bash
-        mkvirtualenv yeaz -p 3.6
-        pip install -r reqirements_yeaz.txt
-        ```
-    - the other parts can be installed in an environment with newer python 
+    - ~~YeaZ requires `tensorflow=1.15`, which requires `python=3.6`, so I installed it in a separate environment:~~ YeaZ now supports PyTorch and can be installed in the same virtual env as below.
+    - The other parts can be installed in an environment with newer python. **Due to compatibility issues of python-bioformat, please make sure to install pyhton<=3.10 and numpy==1.xx** 
         ```bash
         mkvirtualenv organelle    # if you want to run the project in an isolated environment 
         pip install -r requirements.txt
